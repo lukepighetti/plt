@@ -1,0 +1,13 @@
+version: '3'
+
+tasks:
+  game:build: flutter build web --web-renderer=canvaskit
+  game:serve: npx -y serve -l 8000 build/web
+  game:watch: npx -y nodemon -w game --exec "task game:build" -e "dart"
+  game:tunnel: tunnelto -s plt -p 8000
+  tmux: > 
+    tmux new-session 'task game:watch' \; 
+    split-window -h 'task game:serve' \;
+    split-window -h 'task game:tunnel' \;
+    select-layout tiled \;
+    select-pane -t 0 \;
