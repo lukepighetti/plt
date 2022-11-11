@@ -5,6 +5,7 @@ tasks:
   game:serve: npx -y serve -l 8000 build/web
   game:watch: npx -y nodemon -w game --exec "task game:build" -e "dart"
   game:tunnel: tunnelto -s plt -p 8000
+  server:serve: docker-compose up -d --force-recreate
   tmux: > 
     tmux new-session 'task game:watch' \; 
     split-window -h 'task game:serve' \;

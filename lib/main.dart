@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:mqtt_client/mqtt_browser_client.dart';
+import 'package:mqtt_client/mqtt_client.dart';
 
 void main() {
   runApp(const MyApp());
@@ -26,19 +28,75 @@ class MyHomePage extends StatefulWidget {
 
 class _MyHomePageState extends State<MyHomePage> {
   late final _nameController = TextEditingController();
+  late final _nameFocusNode = FocusNode();
 
   var _name = '';
 
   @override
+  void initState() {
+    print('initState');
+    setupMqtt();
+    super.initState();
+  }
+
+  // TODO: get websockets working with tunneling
+  final client = MqttBrowserClient('ws://localhost', '');
+
+  Future<void> setupMqtt() async {
+    client.port = 9001;
+    client.setProtocolV311();
+    client.keepAlivePeriod = 30;
+
+    client.websocketProtocols = MqttClientConstants.protocolsSingleDefault;
+
+    try {
+      print("Connecting to MQTT server");
+      await client.connect();
+      // dirty hax, dirty hax, dirty hax
+      setState(() {});
+      print("Connected to MQTT server");
+    } catch (e) {
+      print(e);
+    }
+
+    client.subscribe('#', MqttQos.atMostOnce);
+
+    await for (final batch in client.updates!) {
+      for (final message in batch) {
+        final p = message.payload;
+        if (p is! MqttPublishMessage) continue;
+        final pt = MqttPublishPayload.bytesToStringAsString(p.payload.message);
+        print('<${message.topic}>: $pt');
+      }
+    }
+  }
+
+  void _broadcastJoin(String name) {
+    final builder = MqttClientPayloadBuilder();
+    builder.addString(name);
+    client.publishMessage(
+        'broadcast-join', MqttQos.atMostOnce, builder.payload!);
+  }
+
+  @override
   void dispose() {
     _nameController.dispose();
+    _nameFocusNode.dispose();
     super.dispose();
   }
 
   void _submitName() {
+    final name = _nameController.text.trim();
+    if (name.isEmpty) {
+      _nameFocusNode.requestFocus();
+      return;
+    }
+
     setState(() {
-      _name = _nameController.text;
+      _name = name;
     });
+
+    _broadcastJoin(name);
   }
 
   @override
@@ -77,6 +135,8 @@ class _MyHomePageState extends State<MyHomePage> {
                           padding: EdgeInsets.all(25),
                           child: TextField(
                             controller: _nameController,
+                            focusNode: _nameFocusNode,
+                            onSubmitted: (_) => _submitName(),
                             autofocus: true,
                             decoration:
                                 InputDecoration(hintText: "Ligma Johnson"),
@@ -105,6 +165,17 @@ class _MyHomePageState extends State<MyHomePage> {
                       ],
                     ),
                   ),
+                ),
+              ),
+            ),
+
+          if (client.connectionStatus?.state != MqttConnectionState.connected)
+            ColoredBox(
+              color: Colors.black87,
+              child: Center(
+                child: Text(
+                  "Loading...",
+                  style: Theme.of(context).textTheme.headlineMedium,
                 ),
               ),
             ),
