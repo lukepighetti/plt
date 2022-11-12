@@ -4,11 +4,12 @@ tasks:
   game:build: flutter build web --web-renderer=canvaskit
   game:serve: npx -y serve -l 8000 build/web
   game:watch: npx -y nodemon -w game --exec "task game:build" -e "dart"
-  server:serve: docker-compose up -d --force-recreate
+  server:serve: mosquitto -c mosquitto.conf
   tunnel: ngrok start --all --config ngrok.yaml --authtoken $NGROK_AUTHTOKEN
   tmux: > 
     tmux new-session 'task game:watch' \; 
     split-window -h 'task game:serve' \;
+    split-window -h 'task server:serve' \;
     split-window -h 'task tunnel' \;
     select-layout tiled \;
     select-pane -t 0 \;
