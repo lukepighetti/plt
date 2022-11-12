@@ -1,0 +1,11 @@
+version: "2"
+region: us
+tunnels:
+  plt:
+    proto: http
+    addr: 8000
+    subdomain: plt
+  plt-mqtt:
+    proto: http
+    addr: 8080
+    subdomain: plt-mqtt

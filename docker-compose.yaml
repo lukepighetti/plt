@@ -7,5 +7,5 @@ services:
       - "./mosquitto.conf:/mosquitto/config/mosquitto.conf"
     ports:
       - "1883:1883"
-      - "9001:9001"
+      - "8080:8080"
     command: "mosquitto -c /mosquitto/config/mosquitto.conf"

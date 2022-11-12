@@ -39,11 +39,10 @@ class _MyHomePageState extends State<MyHomePage> {
     super.initState();
   }
 
-  // TODO: get websockets working with tunneling
-  final client = MqttBrowserClient('ws://localhost', '');
+  final client = MqttBrowserClient('wss://plt-mqtt.ngrok.io', '');
 
   Future<void> setupMqtt() async {
-    client.port = 9001;
+    client.port = 443;
     client.setProtocolV311();
     client.keepAlivePeriod = 30;
 
