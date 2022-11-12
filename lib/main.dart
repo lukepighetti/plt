@@ -1,8 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:mqtt_client/mqtt_browser_client.dart';
 import 'package:mqtt_client/mqtt_client.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
-void main() {
+import 'game_view.dart';
+
+late final SharedPreferences prefs;
+
+Future<void> main() async {
+  prefs = await SharedPreferences.getInstance();
   runApp(const MyApp());
 }
 
@@ -30,7 +36,7 @@ class _MyHomePageState extends State<MyHomePage> {
   late final _nameController = TextEditingController();
   late final _nameFocusNode = FocusNode();
 
-  var _name = '';
+  var _name = prefs.getString('name') ?? '';
 
   @override
   void initState() {
@@ -92,6 +98,18 @@ class _MyHomePageState extends State<MyHomePage> {
     }
 
     setState(() {
+      prefs.setString('name', name);
+      _name = name;
+    });
+
+    _broadcastJoin(name);
+  }
+
+  void _resetName() {
+    final name = '';
+
+    setState(() {
+      prefs.setString('name', name);
       _name = name;
     });
 
@@ -105,7 +123,26 @@ class _MyHomePageState extends State<MyHomePage> {
         fit: StackFit.expand,
         children: [
           /// Game view
-          Placeholder(color: Colors.blue),
+          GameView(),
+
+          /// Status bar
+          Align(
+            alignment: Alignment.topCenter,
+            child: Padding(
+              padding: const EdgeInsets.all(25),
+              child: Row(
+                children: [
+                  if (_name.isNotEmpty)
+                    TextButton(
+                      child: Text(_name),
+                      onPressed: () {
+                        _resetName();
+                      },
+                    ),
+                ],
+              ),
+            ),
+          ),
 
           /// Enter your name
           if (_name.isEmpty)
