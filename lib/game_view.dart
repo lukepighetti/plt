@@ -2,7 +2,7 @@ import 'package:flame/components.dart';
 import 'package:flame/game.dart';
 import 'package:flutter/material.dart';
 
-const _kDebugMode = true;
+import 'game_view_utils.dart';
 
 class GameView extends StatefulWidget {
   const GameView({super.key});
@@ -39,40 +39,38 @@ class MyGame extends FlameGame with SingleGameInstance {
     await add(me);
     await add(horizon);
     await add(platforms);
+    await add(FpsTextComponent());
 
     me.position = Vector2(150, game.size.y - 150);
     horizon.position = Vector2(0, game.size.y - horizon.size.y);
   }
 }
 
-class MyCharacter extends SpriteComponent {
+class MyCharacter extends PlaceholderComponent {
   @override
   Future<void> onLoad() async {
-    debugMode = _kDebugMode;
     size = Vector2(50, 50);
-    debugColor = Colors.red;
+    color = Colors.red;
   }
 }
 
-class MyHorizon extends SpriteComponent {
+class MyHorizon extends PlaceholderComponent {
   @override
   Future<void> onLoad() async {
-    debugMode = _kDebugMode;
     size = Vector2(findGame()!.size.x, 50);
-    debugColor = Colors.green;
+    color = Colors.green;
   }
 }
 
-class MyPlatform extends SpriteComponent {
+class MyPlatform extends PlaceholderComponent {
   MyPlatform(this.offset);
 
   final Vector2 offset;
 
   @override
   Future<void> onLoad() async {
-    debugMode = _kDebugMode;
     size = Vector2(250, 25);
     position = offset;
-    debugColor = Colors.orange;
+    color = Colors.orange;
   }
 }

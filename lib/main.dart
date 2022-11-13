@@ -1,3 +1,4 @@
+import 'package:flame/components.dart';
 import 'package:flutter/material.dart';
 import 'package:mqtt_client/mqtt_browser_client.dart';
 import 'package:mqtt_client/mqtt_client.dart';
@@ -131,6 +132,7 @@ class _MyHomePageState extends State<MyHomePage> {
             child: Padding(
               padding: const EdgeInsets.all(25),
               child: Row(
+                mainAxisAlignment: MainAxisAlignment.end,
                 children: [
                   if (_name.isNotEmpty)
                     TextButton(
