@@ -1,8 +1,8 @@
-import 'package:flame/components.dart';
 import 'package:flutter/material.dart';
 import 'package:mqtt_client/mqtt_browser_client.dart';
 import 'package:mqtt_client/mqtt_client.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flame_forge2d/flame_forge2d.dart';
 
 import 'game_view.dart';
 
