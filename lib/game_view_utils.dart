@@ -1,28 +1,12 @@
-import 'package:flame/components.dart';
-import 'package:flutter/material.dart' show Colors;
-import 'package:flutter/widgets.dart';
+import 'package:flame_forge2d/flame_forge2d.dart';
 
-// A flame component that has a color associated with it
-class PlaceholderComponent extends CustomPainterComponent {
-  var color = Colors.red;
-
-  @override
-  late final painter = _ColoredPainter(color);
-}
-
-class _ColoredPainter extends CustomPainter {
-  _ColoredPainter(this.color);
-
-  final Color color;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    canvas.drawRect(
-      Rect.fromLTWH(0, 0, size.width, size.height),
-      Paint()..color = color,
+extension PolygonShapeX on PolygonShape {
+  void setAsBoxFromSize(Vector2 size) {
+    setAsBox(
+      size.x / 2,
+      size.y / 2,
+      Vector2(size.x / 2, size.y / 2),
+      0,
     );
   }
-
-  @override
-  bool shouldRepaint(_ColoredPainter old) => old.color != color;
 }

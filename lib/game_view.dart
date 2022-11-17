@@ -2,136 +2,63 @@ import 'package:flame/components.dart';
 import 'package:flame/game.dart';
 import 'package:flame_forge2d/flame_forge2d.dart';
 import 'package:flutter/material.dart';
+import 'package:plt/game_view_utils.dart';
 
-import 'game_view_utils.dart';
-
-class GameView extends StatefulWidget {
+class GameView extends StatelessWidget {
   const GameView({super.key});
 
   @override
-  State<GameView> createState() => _GameViewState();
-}
-
-class _GameViewState extends State<GameView> {
-  final game = MyGame();
-
-  @override
   Widget build(BuildContext context) {
-    return GameWidget(game: game);
+    return GameWidget.controlled(gameFactory: () => MyGame());
   }
 }
 
 class MyGame extends Forge2DGame with SingleGameInstance {
   MyGame() {
-    // this.world.setGravity(Vector2(0, 9.8));
+    this.camera.zoom = 40.0;
   }
 
   late final Game game = findGame()!;
-
-  final me = MyCharacter();
-  final horizon = _MyHorizonVisual();
-  late final platforms = PositionComponent(
-    position: Vector2(0, game.size.y),
-    children: [
-      _MyPlatformVisual(Vector2(05, -25)),
-      _MyPlatformVisual(Vector2(15, -45)),
-      _MyPlatformVisual(Vector2(25, -65)),
-    ],
-  );
+  late final ground = Ground();
 
   @override
   Future<void> onLoad() async {
-    await add(me);
-    await add(horizon);
-    await add(platforms);
-    await add(FpsTextComponent());
+    await add(Me());
+    await add(ground);
 
-    me.position = Vector2(15, game.size.y - 15);
-    // horizon.position = Vector2(0, game.size.y - horizon.size.y);
-    horizon.position = Vector2(0, 5);
+    camera.followBodyComponent(ground, relativeOffset: Anchor(0.05, 0.95));
   }
 }
 
-class MyCharacter extends BodyComponent {
-  MyCharacter() {
-    add(_MyCharacterVisual());
-  }
+class Me extends BodyComponent {
+  final startPos = Vector2(1, -10);
 
-  Vector2? position;
+  late var size = Vector2(0.5, 2.0);
+  late var bodyDef = BodyDef(type: BodyType.dynamic, position: startPos);
+  late var fixtureDef = FixtureDef(PolygonShape()..setAsBoxFromSize(size));
+  late var massData = MassData()..mass = 90;
+  final paint = Paint()..color = Colors.pink.shade300;
 
   @override
   Body createBody() {
-    return world.createBody(
-      BodyDef(type: BodyType.dynamic, position: position),
-    )..createFixture(
-        FixtureDef(CircleShape()),
-      );
+    return world.createBody(bodyDef)
+      ..createFixture(fixtureDef)
+      ..setMassData(massData);
   }
 }
 
-class _MyCharacterVisual extends PlaceholderComponent {
-  _MyCharacterVisual() {
-    size = Vector2(5, 5);
-    color = Colors.red;
-  }
-}
+class Ground extends BodyComponent {
+  late var size = Vector2(1000, 25);
 
-class MyHorizon extends BodyComponent {
-  MyHorizon() {
-    add(_horizon);
-  }
-
-  final _horizon = _MyHorizonVisual();
-
-  Vector2? position;
+  late var bodyDef = BodyDef(type: BodyType.static, position: Vector2.zero());
+  late var fixtureDef = FixtureDef(PolygonShape()..setAsBoxFromSize(size));
+  final paint = Paint()..color = Colors.green;
 
   @override
   Body createBody() {
-    return world.createBody(
-      // TODO: make this BodyType.static
-      BodyDef(type: BodyType.dynamic, position: position),
-    )..createFixture(
-        FixtureDef(
-          PolygonShape()..setAsBoxXY(_horizon.size.x / 2, _horizon.size.y / 2),
-        ),
+    return world.createBody(bodyDef)
+      ..createFixture(
+        fixtureDef,
       );
-  }
-}
-
-class _MyHorizonVisual extends PlaceholderComponent {
-  @override
-  Future<void> onLoad() async {
-    size = Vector2(findGame()!.size.x, 5);
-    color = Colors.green;
-  }
-}
-
-class MyPlatform extends BodyComponent {
-  MyPlatform(Vector2 offset) {
-    add(_MyPlatformVisual(offset));
-  }
-
-  Vector2? position;
-
-  @override
-  Body createBody() {
-    return world.createBody(
-      BodyDef(type: BodyType.dynamic, position: position),
-    )..createFixture(
-        FixtureDef(CircleShape()),
-      );
-  }
-}
-
-class _MyPlatformVisual extends PlaceholderComponent {
-  _MyPlatformVisual(this.offset);
-
-  final Vector2 offset;
-
-  @override
-  Future<void> onLoad() async {
-    size = Vector2(25, 2);
-    position = offset;
-    color = Colors.orange;
   }
 }
