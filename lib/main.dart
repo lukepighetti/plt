@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:mqtt_client/mqtt_browser_client.dart';
 import 'package:mqtt_client/mqtt_client.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:flame_forge2d/flame_forge2d.dart';
 
 import 'game_view.dart';
 
@@ -209,7 +208,7 @@ class _MyHomePageState extends State<MyHomePage> {
 
           if (client.connectionStatus?.state != MqttConnectionState.connected)
             ColoredBox(
-              color: Colors.black87,
+              color: Colors.black26,
               child: Center(
                 child: Text(
                   "Loading...",
