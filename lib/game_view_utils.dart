@@ -10,3 +10,19 @@ extension PolygonShapeX on PolygonShape {
     );
   }
 }
+
+/// A simple FIFO queue
+class FifoQueue<T> {
+  final _list = <T>[];
+  void add(T value) => _list.add(value);
+  void addAll(Iterable<T> values) => _list.addAll(values);
+  T pop() => _list.removeLast();
+  List<T> popAll() {
+    final newList = List<T>.from(_list);
+    _list.clear();
+    return newList;
+  }
+
+  void clear() => _list.clear();
+  bool get hasItems => _list.isNotEmpty;
+}

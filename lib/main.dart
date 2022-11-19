@@ -103,6 +103,7 @@ class _MyHomePageState extends State<MyHomePage> {
     });
 
     _broadcastJoin(name);
+    gameFocusNode.requestFocus();
   }
 
   void _resetName() {
