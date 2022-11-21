@@ -1,7 +1,8 @@
 import 'package:flame/events.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
+
+import 'logger.dart';
 
 mixin KeyboardRouting on KeyboardEvents {
   @override
@@ -12,31 +13,38 @@ mixin KeyboardRouting on KeyboardEvents {
 }
 
 class KeyboardRouter {
-  final Map<LogicalKeyboardKey, Function> handleTap;
-  final Map<LogicalKeyboardKey, PressRouter> handlePress;
-  final bool debug;
+  static const _log = Logger('KeyboardRouter');
 
-  KeyboardRouter(this.handleTap, this.handlePress, {this.debug = kDebugMode});
+  final Map<LogicalKeyboardKey, LogicalKeyboardKey> keyAliases;
+  final Map<LogicalKeyboardKey, Function> handleTap;
+  final Map<LogicalKeyboardKey, KeyRouter> handlePress;
+
+  KeyboardRouter({
+    this.keyAliases = const {},
+    this.handleTap = const {},
+    this.handlePress = const {},
+  });
 
   KeyEventResult handleKeyEvent(
     RawKeyEvent event,
     Set<LogicalKeyboardKey> keysPressed,
   ) {
     if (event.repeat) return KeyEventResult.ignored;
-
+    final alias = keyAliases[event.logicalKey];
     if (event is RawKeyDownEvent) {
       var didCall = false;
-      final tapAction = handleTap[event.logicalKey];
+      final tapAction = handleTap[event.logicalKey] ?? handleTap[alias];
 
       if (tapAction != null) {
-        print('[KeyboardRouter] TAP ${event.logicalKey.debugName}');
+        _log.v('TAP  ${event.logicalKey.debugName}');
         didCall = true;
         tapAction();
       }
       for (final key in keysPressed) {
-        final pressAction = handlePress[key];
+        final alias = keyAliases[key];
+        final pressAction = handlePress[key] ?? handlePress[alias];
         if (pressAction != null) {
-          print('[KeyboardRouter] DOWN ${key.debugName}');
+          _log.v('DOWN ${key.debugName}');
           didCall = true;
           pressAction.onDown();
         }
@@ -44,11 +52,11 @@ class KeyboardRouter {
       if (didCall) return KeyEventResult.handled;
     } else if (event is RawKeyUpEvent) {
       var didCall = false;
-      final tapAction = handlePress[event.logicalKey];
-      if (tapAction != null) {
-        print('[KeyboardRouter] UP ${event.logicalKey.debugName}');
+      final tapAction = handlePress[event.logicalKey] ?? handlePress[alias];
+      if (tapAction?.onUp != null) {
+        _log.v('UP   ${event.logicalKey.debugName}');
         didCall = true;
-        tapAction.onUp();
+        tapAction!.onUp!.call();
       }
       if (didCall) return KeyEventResult.handled;
     }
@@ -56,12 +64,12 @@ class KeyboardRouter {
   }
 }
 
-class PressRouter {
+class KeyRouter {
   final Function onDown;
-  final Function onUp;
+  final Function? onUp;
 
-  PressRouter({
+  KeyRouter({
     required this.onDown,
-    required this.onUp,
+    this.onUp,
   });
 }

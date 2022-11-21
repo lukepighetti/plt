@@ -4,6 +4,7 @@ import 'package:mqtt_client/mqtt_client.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'game_view.dart';
+import 'logger.dart';
 
 late final SharedPreferences prefs;
 
@@ -33,6 +34,7 @@ class MyHomePage extends StatefulWidget {
 }
 
 class _MyHomePageState extends State<MyHomePage> {
+  static final _mqttLog = Logger('MQTT');
   late final _nameController = TextEditingController();
   late final _nameFocusNode = FocusNode();
 
@@ -40,7 +42,6 @@ class _MyHomePageState extends State<MyHomePage> {
 
   @override
   void initState() {
-    print('initState');
     setupMqtt();
     super.initState();
   }
@@ -55,13 +56,13 @@ class _MyHomePageState extends State<MyHomePage> {
     client.websocketProtocols = MqttClientConstants.protocolsSingleDefault;
 
     try {
-      print("Connecting to MQTT server");
+      _mqttLog.i("Connecting to MQTT server");
       await client.connect();
       // dirty hax, dirty hax, dirty hax
       setState(() {});
-      print("Connected to MQTT server");
+      _mqttLog.i("Connected to MQTT server");
     } catch (e) {
-      print(e);
+      _mqttLog.e(e.toString());
     }
 
     client.subscribe('#', MqttQos.atMostOnce);
@@ -71,7 +72,7 @@ class _MyHomePageState extends State<MyHomePage> {
         final p = message.payload;
         if (p is! MqttPublishMessage) continue;
         final pt = MqttPublishPayload.bytesToStringAsString(p.payload.message);
-        print('<${message.topic}>: $pt');
+        _mqttLog.v('<${message.topic}>: $pt');
       }
     }
   }
