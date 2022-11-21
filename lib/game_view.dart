@@ -129,8 +129,7 @@ class Character extends RectangleComponent
     if (groundedPosition != null && !thrusting) {
       position.y = min(groundedPosition!.y, position.y);
       position.x = groundedPosition!.x;
-      velocity.y = 0;
-      velocity.x = 0;
+      velocity.setZero();
     }
 
     super.update(dt);
