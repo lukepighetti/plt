@@ -68,15 +68,11 @@ class MyGame extends FlameGame
         onUp: () => me.thrusting = false,
       ),
       LogicalKeyboardKey.arrowRight: KeyRouter(
-        onDown: () => me
-          ..movingRight = true
-          ..movingLeft = false,
+        onDown: () => me..movingRight = true,
         onUp: () => me.movingRight = false,
       ),
       LogicalKeyboardKey.arrowLeft: KeyRouter(
-        onDown: () => me
-          ..movingLeft = true
-          ..movingRight = false,
+        onDown: () => me..movingLeft = true,
         onUp: () => me.movingLeft = false,
       ),
     },
@@ -95,7 +91,7 @@ class Character extends RectangleComponent
   static final gravity = Vector2(0, 10);
   static final thrust = Vector2(0, -90);
   static final moveLeft = Vector2(-50, 0);
-  static final moveRight = -moveLeft;
+  static final moveRight = Vector2(-moveLeft.x, moveLeft.y);
   static final maxVelocity = Vector2.all(40);
 
   late final position = super.position;
