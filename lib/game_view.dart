@@ -86,13 +86,11 @@ class OffscreenCharacter extends PositionComponent with HasGameRef<MyGame> {
 
   final Character characterRef;
 
-  late final paint = Paint()..color = Colors.green;
-  // late final paint = characterRef.paint;
+  late final paint = characterRef.paint;
 
   static const r = 0.2;
 
   late final characterPoint = PositionComponent(
-    anchor: Anchor.center,
     children: [
       CircleComponent(
         radius: r,
@@ -109,27 +107,29 @@ class OffscreenCharacter extends PositionComponent with HasGameRef<MyGame> {
     ],
   );
 
-  late final myRectangleComponent = RectangleComponent(
-    anchor: Anchor.center,
-    size: camera.gameSize - padding * 2,
-    paint: Paint()..color = Colors.red.withOpacity(0.2),
+  late final boundary = RectangleComponent(
+    size: _getBoundarySize(),
+    position: _getBoundaryPosition(),
+    paint: Paint()..color = Colors.transparent,
   );
-
-  @override
-  Future<void>? onLoad() async {
-    await add(characterPoint);
-    await add(myRectangleComponent);
-    return super.onLoad();
-  }
 
   late final camera = gameRef.camera;
   late final padding = Vector2.all(0.5);
 
+  Vector2 _getBoundarySize() => camera.gameSize - padding * 2;
+  Vector2 _getBoundaryPosition() => camera.position + padding;
+
+  @override
+  Future<void>? onLoad() async {
+    await add(characterPoint);
+    await add(boundary);
+    return super.onLoad();
+  }
+
   @override
   void onGameResize(Vector2 size) {
-    print('$size ${gameRef.canvasSize} ${gameRef.size} ${camera.gameSize}');
-    // TODO: doesn't update the size
-    myRectangleComponent.size = (gameRef.size - padding * 2);
+    boundary.position.setFrom(_getBoundaryPosition());
+    boundary.sizeSetFromShim(_getBoundarySize());
     super.onGameResize(size);
   }
 
@@ -138,10 +138,9 @@ class OffscreenCharacter extends PositionComponent with HasGameRef<MyGame> {
     final cameraCenter = camera.position + camera.gameSize / 2;
     final characterCenter = characterRef.position + characterRef.size / 2;
     final lineTo = LineSegment(cameraCenter, characterCenter);
-    myRectangleComponent.position.setFrom(cameraCenter);
     characterPoint.angle = (characterCenter - cameraCenter).screenAngle();
     characterPoint.position.setFrom(characterCenter);
-    final intersection = myRectangleComponent.intersectionWith(lineTo);
+    final intersection = boundary.intersectionWith(lineTo);
     if (intersection != null) characterPoint.position.setFrom(intersection);
     super.update(dt);
   }
@@ -247,5 +246,15 @@ extension RectangleComponentX on RectangleComponent {
         .where((r) => r.isNotEmpty)
         .singleOrNull
         ?.singleOrNull;
+  }
+
+  /// A shim for issue https://github.com/flame-engine/flame/pull/2167
+  void sizeSetFromShim(Vector2 size) {
+    size.setFrom(size);
+    // ignore: invalid_use_of_protected_member
+    refreshVertices(
+      // ignore: invalid_use_of_protected_member
+      newVertices: RectangleComponent.sizeToVertices(size, anchor),
+    );
   }
 }
