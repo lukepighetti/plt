@@ -1,8 +1,10 @@
 import 'dart:math';
 
+import 'package:collection/collection.dart';
 import 'package:flame/collisions.dart';
 import 'package:flame/components.dart';
 import 'package:flame/game.dart';
+import 'package:flame/geometry.dart';
 import 'package:flame/input.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -84,13 +86,8 @@ class OffscreenCharacter extends PositionComponent with HasGameRef<MyGame> {
 
   final Character characterRef;
 
-  final paint = Paint()..color = Colors.purple;
-
-  late final centerPoint = CircleComponent(
-    radius: 0.2,
-    anchor: Anchor.center,
-    paint: Paint()..color = Colors.red,
-  );
+  late final paint = Paint()..color = Colors.green;
+  // late final paint = characterRef.paint;
 
   static const r = 0.2;
 
@@ -107,15 +104,21 @@ class OffscreenCharacter extends PositionComponent with HasGameRef<MyGame> {
         size: Vector2.all(0.4),
         anchor: Anchor.center,
         paint: paint,
-        angle: -3 * pi / 4,
+        angle: 1 * pi / 4,
       ),
     ],
   );
 
+  late final myRectangleComponent = RectangleComponent(
+    anchor: Anchor.center,
+    size: camera.gameSize - padding * 2,
+    paint: Paint()..color = Colors.red.withOpacity(0.2),
+  );
+
   @override
   Future<void>? onLoad() async {
-    await add(centerPoint);
     await add(characterPoint);
+    await add(myRectangleComponent);
     return super.onLoad();
   }
 
@@ -123,18 +126,23 @@ class OffscreenCharacter extends PositionComponent with HasGameRef<MyGame> {
   late final padding = Vector2.all(0.5);
 
   @override
+  void onGameResize(Vector2 size) {
+    print('$size ${gameRef.canvasSize} ${gameRef.size} ${camera.gameSize}');
+    // TODO: doesn't update the size
+    myRectangleComponent.size = (gameRef.size - padding * 2);
+    super.onGameResize(size);
+  }
+
+  @override
   void update(double dt) {
     final cameraCenter = camera.position + camera.gameSize / 2;
     final characterCenter = characterRef.position + characterRef.size / 2;
-    final upperLeft = camera.position + padding;
-    final lowerRight = camera.position + camera.gameSize - padding;
-    centerPoint.position.setFrom(cameraCenter);
+    final lineTo = LineSegment(cameraCenter, characterCenter);
+    myRectangleComponent.position.setFrom(cameraCenter);
     characterPoint.angle = (characterCenter - cameraCenter).screenAngle();
     characterPoint.position.setFrom(characterCenter);
-
-    // TODO: don't clamp, find intersecton with viewport bounds
-    characterPoint.position.clamp(upperLeft, lowerRight);
-
+    final intersection = myRectangleComponent.intersectionWith(lineTo);
+    if (intersection != null) characterPoint.position.setFrom(intersection);
     super.update(dt);
   }
 }
@@ -219,7 +227,7 @@ class Ground extends RectangleComponent {
   }
 }
 
-extension on Vector2 {
+extension Vector2X on Vector2 {
   void damp(Vector2 damping, double dt) {
     setFrom(Vector2(
       x / (1 + damping.x * dt),
@@ -229,5 +237,15 @@ extension on Vector2 {
 
   void limit(Vector2 maximum) {
     clamp(-maximum, maximum);
+  }
+}
+
+extension RectangleComponentX on RectangleComponent {
+  Vector2? intersectionWith(LineSegment segment) {
+    return possibleIntersectionVertices(null)
+        .map((r) => r.intersections(segment))
+        .where((r) => r.isNotEmpty)
+        .singleOrNull
+        ?.singleOrNull;
   }
 }
