@@ -43,7 +43,7 @@ class MyGame extends FlameGame
     await add(me);
     await add(ground);
     await add(FpsTextComponent());
-
+    await add(OffscreenCharacter(me));
     camera.followComponent(ground, relativeOffset: Anchor(0.05, 0.95));
   }
 
@@ -77,6 +77,66 @@ class MyGame extends FlameGame
       ),
     },
   );
+}
+
+class OffscreenCharacter extends PositionComponent with HasGameRef<MyGame> {
+  OffscreenCharacter(this.characterRef);
+
+  final Character characterRef;
+
+  final paint = Paint()..color = Colors.purple;
+
+  late final centerPoint = CircleComponent(
+    radius: 0.2,
+    anchor: Anchor.center,
+    paint: Paint()..color = Colors.red,
+  );
+
+  static const r = 0.2;
+
+  late final characterPoint = PositionComponent(
+    anchor: Anchor.center,
+    children: [
+      CircleComponent(
+        radius: r,
+        anchor: Anchor.center,
+        paint: paint,
+      ),
+      PolygonComponent(
+        [Vector2(-r, -r), Vector2(0, -r), Vector2(-r, 0)],
+        size: Vector2.all(0.4),
+        anchor: Anchor.center,
+        paint: paint,
+        angle: -3 * pi / 4,
+      ),
+    ],
+  );
+
+  @override
+  Future<void>? onLoad() async {
+    await add(centerPoint);
+    await add(characterPoint);
+    return super.onLoad();
+  }
+
+  late final camera = gameRef.camera;
+  late final padding = Vector2.all(0.5);
+
+  @override
+  void update(double dt) {
+    final cameraCenter = camera.position + camera.gameSize / 2;
+    final characterCenter = characterRef.position + characterRef.size / 2;
+    final upperLeft = camera.position + padding;
+    final lowerRight = camera.position + camera.gameSize - padding;
+    centerPoint.position.setFrom(cameraCenter);
+    characterPoint.angle = (characterCenter - cameraCenter).screenAngle();
+    characterPoint.position.setFrom(characterCenter);
+
+    // TODO: don't clamp, find intersecton with viewport bounds
+    characterPoint.position.clamp(upperLeft, lowerRight);
+
+    super.update(dt);
+  }
 }
 
 class Character extends RectangleComponent
