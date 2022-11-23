@@ -31,36 +31,32 @@ class KeyboardRouter {
   ) {
     if (event.repeat) return KeyEventResult.ignored;
     final alias = keyAliases[event.logicalKey];
+    var didCall = false;
     if (event is RawKeyDownEvent) {
-      var didCall = false;
       final tapAction = handleTap[event.logicalKey] ?? handleTap[alias];
-
       if (tapAction != null) {
         _log.v('TAP  ${event.logicalKey.debugName}');
         didCall = true;
         tapAction();
       }
-      for (final key in keysPressed) {
-        final alias = keyAliases[key];
-        final pressAction = handlePress[key] ?? handlePress[alias];
-        if (pressAction != null) {
-          _log.v('DOWN ${key.debugName}');
-          didCall = true;
-          pressAction.onDown();
-        }
+      final pressAction = handlePress[event.logicalKey] ?? handlePress[alias];
+      if (pressAction != null) {
+        _log.v('DOWN ${event.logicalKey.debugName}');
+        didCall = true;
+        pressAction.onDown();
       }
-      if (didCall) return KeyEventResult.handled;
     } else if (event is RawKeyUpEvent) {
-      var didCall = false;
       final tapAction = handlePress[event.logicalKey] ?? handlePress[alias];
       if (tapAction?.onUp != null) {
         _log.v('UP   ${event.logicalKey.debugName}');
         didCall = true;
         tapAction!.onUp!.call();
       }
-      if (didCall) return KeyEventResult.handled;
     }
-    return KeyEventResult.ignored;
+    if (didCall)
+      return KeyEventResult.handled;
+    else
+      return KeyEventResult.ignored;
   }
 }
 
