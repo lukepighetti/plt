@@ -8,6 +8,7 @@ import 'package:flame/geometry.dart';
 import 'package:flame/input.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:plt/mobile_controller.dart';
 
 import 'collision_routing.dart';
 import 'keyboard_routing.dart';
@@ -29,6 +30,7 @@ class GameView extends StatelessWidget {
 class MyGame extends FlameGame
     with
         HasCollisionDetection,
+        HasTappables,
         KeyboardEvents,
         KeyboardRouting,
         SingleGameInstance {
@@ -39,6 +41,7 @@ class MyGame extends FlameGame
   late final Game game = findGame()!;
   late final me = Character();
   late final ground = Ground();
+  late final mobileControllerRight = MobileControllerRight();
 
   @override
   Future<void> onLoad() async {
@@ -46,6 +49,7 @@ class MyGame extends FlameGame
     await add(ground);
     await add(FpsTextComponent());
     await add(OffscreenCharacter(me));
+    await add(mobileControllerRight);
     camera.followComponent(ground, relativeOffset: Anchor(0.05, 0.95));
   }
 
