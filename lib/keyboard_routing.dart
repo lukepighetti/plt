@@ -17,7 +17,7 @@ class KeyboardRouter {
 
   final Map<LogicalKeyboardKey, LogicalKeyboardKey> keyAliases;
   final Map<LogicalKeyboardKey, Function> handleTap;
-  final Map<LogicalKeyboardKey, KeyRouter> handlePress;
+  final Map<LogicalKeyboardKey, ButtonRouter> handlePress;
 
   KeyboardRouter({
     this.keyAliases = const {},
@@ -60,11 +60,11 @@ class KeyboardRouter {
   }
 }
 
-class KeyRouter {
+class ButtonRouter {
   final Function onDown;
   final Function? onUp;
 
-  KeyRouter({
+  ButtonRouter({
     required this.onDown,
     this.onUp,
   });

@@ -34,6 +34,8 @@ class MyGame extends FlameGame
         HasTappables,
         KeyboardEvents,
         KeyboardRouting,
+        MobileControllerEvents,
+        MobileControllerRouting,
         SingleGameInstance {
   MyGame() {
     this.camera.zoom = 40.0;
@@ -72,18 +74,34 @@ class MyGame extends FlameGame
       LogicalKeyboardKey.space: LogicalKeyboardKey.arrowUp,
     },
     handlePress: {
-      LogicalKeyboardKey.arrowUp: KeyRouter(
+      LogicalKeyboardKey.arrowUp: ButtonRouter(
         onDown: () => me.thrusting = true,
         onUp: () => me.thrusting = false,
       ),
-      LogicalKeyboardKey.arrowRight: KeyRouter(
+      LogicalKeyboardKey.arrowRight: ButtonRouter(
         onDown: () => me..movingRight = true,
         onUp: () => me.movingRight = false,
       ),
-      LogicalKeyboardKey.arrowLeft: KeyRouter(
+      LogicalKeyboardKey.arrowLeft: ButtonRouter(
         onDown: () => me..movingLeft = true,
         onUp: () => me.movingLeft = false,
       ),
+    },
+  );
+
+  @override
+  late final mobileControllerRouter = MobileControllerRouter(
+    // TODO: handleStickChanged: (vector) {},
+    handleStickDirection: {
+      AxisDirection.left:
+          keyboardRouter.handlePress[LogicalKeyboardKey.arrowLeft]!,
+      AxisDirection.right:
+          keyboardRouter.handlePress[LogicalKeyboardKey.arrowRight]!,
+      AxisDirection.up: keyboardRouter.handlePress[LogicalKeyboardKey.arrowUp]!,
+    },
+    handlePress: {
+      MobileControllerButton.primary:
+          keyboardRouter.handlePress[LogicalKeyboardKey.arrowUp]!,
     },
   );
 }

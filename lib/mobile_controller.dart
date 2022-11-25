@@ -1,12 +1,14 @@
 import 'dart:math';
 
 import 'package:flame/components.dart';
+import 'package:flame/game.dart';
 import 'package:flame/input.dart';
 import 'package:flutter/material.dart' hide Draggable;
 
+import 'keyboard_routing.dart';
 import 'logger.dart';
 
-class MobileControllerRight extends HudMarginComponent {
+class MobileControllerRight extends HudMarginComponent<MobileControllerEvents> {
   static const _log = Logger('MobileControllerRight');
 
   MobileControllerRight()
@@ -16,15 +18,15 @@ class MobileControllerRight extends HudMarginComponent {
         );
 
   late final primary = _PrimaryHudButtonComponent(
-    onPressed: () => _log.v('onPressed primary'),
-    onReleased: () => _log.v('onReleased primary'),
+    onPressed: () => gameRef.onButtonDown(MobileControllerButton.primary),
+    onReleased: () => gameRef.onButtonUp(MobileControllerButton.primary),
     buttonColor: Colors.green,
     pressedButtonColor: Colors.lightGreen,
   );
 
   late final secondary1 = _SecondaryHudButtonComponent(
-    onPressed: () => _log.v('onPressed B'),
-    onReleased: () => _log.v('onReleased B'),
+    onPressed: () => gameRef.onButtonDown(MobileControllerButton.secondary1),
+    onReleased: () => gameRef.onButtonUp(MobileControllerButton.secondary1),
     text: 'D',
     position: 1,
     buttonColor: Colors.blue,
@@ -32,8 +34,8 @@ class MobileControllerRight extends HudMarginComponent {
   );
 
   late final secondary2 = _SecondaryHudButtonComponent(
-    onPressed: () => _log.v('onPressed C'),
-    onReleased: () => _log.v('onReleased C'),
+    onPressed: () => gameRef.onButtonDown(MobileControllerButton.secondary2),
+    onReleased: () => gameRef.onButtonUp(MobileControllerButton.secondary2),
     text: 'B',
     position: 2,
     buttonColor: Colors.blue,
@@ -41,8 +43,8 @@ class MobileControllerRight extends HudMarginComponent {
   );
 
   late final secondary3 = _SecondaryHudButtonComponent(
-    onPressed: () => _log.v('onPressed D'),
-    onReleased: () => _log.v('onReleased D'),
+    onPressed: () => gameRef.onButtonDown(MobileControllerButton.secondary3),
+    onReleased: () => gameRef.onButtonUp(MobileControllerButton.secondary3),
     text: 'C',
     position: 3,
     buttonColor: Colors.blue,
@@ -50,8 +52,8 @@ class MobileControllerRight extends HudMarginComponent {
   );
 
   late final secondary4 = _SecondaryHudButtonComponent(
-    onPressed: () => _log.v('onPressed E'),
-    onReleased: () => _log.v('onReleased E'),
+    onPressed: () => gameRef.onButtonDown(MobileControllerButton.secondary4),
+    onReleased: () => gameRef.onButtonUp(MobileControllerButton.secondary4),
     text: 'E',
     position: 4,
     buttonColor: Colors.blue,
@@ -59,8 +61,8 @@ class MobileControllerRight extends HudMarginComponent {
   );
 
   late final tertiary1 = _TertiaryHudButtonComponent(
-    onPressed: () => _log.v('onPressed E'),
-    onReleased: () => _log.v('onReleased E'),
+    onPressed: () => gameRef.onButtonDown(MobileControllerButton.tertiary1),
+    onReleased: () => gameRef.onButtonUp(MobileControllerButton.tertiary1),
     text: 'F',
     position: 2,
     buttonColor: Colors.deepOrange.shade800,
@@ -208,7 +210,8 @@ class _TertiaryHudButtonComponent extends HudButtonComponent {
         );
 }
 
-class MobileControllerLeft extends HudMarginComponent with Draggable {
+class MobileControllerLeft extends HudMarginComponent<MobileControllerEvents>
+    with Draggable {
   static const _log = Logger('MobileControllerLeft');
 
   static const defaultOpacity = 0.7;
@@ -224,6 +227,7 @@ class MobileControllerLeft extends HudMarginComponent with Draggable {
   late final startOffset = Vector2.zero();
   late final dragOffset = Vector2.zero();
   late final stickOffset = Vector2.zero();
+  late final stickVector = Vector2.zero();
 
   late final cardinality = CircleComponent(
     radius: 75,
@@ -248,7 +252,6 @@ class MobileControllerLeft extends HudMarginComponent with Draggable {
     await add(cardinality);
     await add(stickBackground);
     await add(stick);
-
     return super.onLoad();
   }
 
@@ -258,36 +261,45 @@ class MobileControllerLeft extends HudMarginComponent with Draggable {
       ..setFrom(info.eventPosition.viewport)
       ..x -= 100
       ..y -= gameRef.canvasSize.y - 100;
-
     cardinality.setOpacity(1.0);
     stickBackground.setOpacity(1.0);
     stick.setOpacity(1.0);
-
     return super.onDragStart(info);
   }
 
   @override
   bool onDragUpdate(DragUpdateInfo info) {
-    const maxRadius = 75.0;
+    const maxLength = 75.0;
     dragOffset.add(info.delta.viewport);
-    if (dragOffset.length > maxRadius) {
-      stickOffset.setFrom(dragOffset.normalized() * maxRadius);
-    } else {
-      stickOffset.setFrom(dragOffset);
-    }
+    stickOffset
+      ..setFrom(dragOffset)
+      ..clampLength(maxLength);
+    stickVector.setFrom(stickOffset / maxLength);
+    gameRef.onStickChanged(stickVector);
     return super.onDragUpdate(info);
   }
 
-  @override
-  bool onDragEnd(DragEndInfo info) {
+  void _completeDrag() {
     cardinality.setOpacity(defaultOpacity);
     stickBackground.setOpacity(defaultOpacity);
     stick.setOpacity(defaultOpacity);
     startOffset.setZero();
     dragOffset.setZero();
     stickOffset.setZero();
+    stickVector.setZero();
+    gameRef.onStickChanged(Vector2.zero());
+  }
 
+  @override
+  bool onDragEnd(DragEndInfo info) {
+    _completeDrag();
     return super.onDragEnd(info);
+  }
+
+  @override
+  bool onDragCancel() {
+    _completeDrag();
+    return super.onDragCancel();
   }
 
   @override
@@ -297,4 +309,117 @@ class MobileControllerLeft extends HudMarginComponent with Draggable {
     stick.position.setFrom(baseOffset + startOffset + stickOffset);
     super.update(dt);
   }
+}
+
+extension MobileControllerVector2 on Vector2 {
+  void clampLength(double maxLength) {
+    if (this.length > maxLength) {
+      normalize();
+      scaleTo(maxLength);
+    }
+  }
+
+  String toShortString() =>
+      [x.toStringAsFixed(2), y.toStringAsFixed(2)].toString();
+
+  AxisDirection? get stickDirection {
+    if (length > 0.5) {
+      final angle = screenAngle();
+
+      const nw = -pi / 4;
+      const ne = pi / 4;
+      const se = 3 * pi / 4;
+      const sw = -3 * pi / 4;
+
+      if (angle > nw && angle <= ne) {
+        return AxisDirection.up;
+      } else if (angle > ne && angle <= se) {
+        return AxisDirection.right;
+      } else if (angle > se || angle <= sw) {
+        return AxisDirection.down;
+      } else {
+        return AxisDirection.left;
+      }
+    }
+
+    return null;
+  }
+}
+
+mixin MobileControllerEvents on FlameGame {
+  void onStickChanged(Vector2 vector) {}
+
+  void onButtonDown(MobileControllerButton button) {}
+
+  void onButtonUp(MobileControllerButton button) {}
+}
+
+mixin MobileControllerRouting on MobileControllerEvents {
+  @override
+  void onStickChanged(Vector2 vector) {
+    mobileControllerRouter.onStickChanged(vector);
+    super.onStickChanged(vector);
+  }
+
+  @override
+  void onButtonDown(MobileControllerButton button) {
+    mobileControllerRouter.onButtonDown(button);
+    super.onButtonDown(button);
+  }
+
+  @override
+  void onButtonUp(MobileControllerButton button) {
+    mobileControllerRouter.handleButtonUp(button);
+    super.onButtonUp(button);
+  }
+
+  MobileControllerRouter get mobileControllerRouter;
+}
+
+class MobileControllerRouter {
+  static const _log = Logger('MobileControllerRouter');
+
+  final Map<MobileControllerButton, ButtonRouter> handlePress;
+  final void Function(Vector2 vector)? handleStickChanged;
+  final Map<AxisDirection, ButtonRouter> handleStickDirection;
+
+  MobileControllerRouter({
+    this.handlePress = const {},
+    this.handleStickChanged,
+    this.handleStickDirection = const {},
+  });
+
+  AxisDirection? _previousStickDirection;
+
+  void onStickChanged(Vector2 vector) {
+    handleStickChanged?.call(vector);
+
+    final direction = vector.stickDirection;
+    if (direction == _previousStickDirection) {
+      return;
+    } else if (direction != null) {
+      handleStickDirection[direction]?.onDown();
+      handleStickDirection[_previousStickDirection]?.onUp?.call();
+    } else {
+      handleStickDirection[_previousStickDirection]?.onUp?.call();
+    }
+    _previousStickDirection = direction;
+  }
+
+  void onButtonDown(MobileControllerButton button) {
+    handlePress[button]?.onDown.call();
+  }
+
+  void handleButtonUp(MobileControllerButton button) {
+    handlePress[button]?.onUp?.call();
+  }
+}
+
+enum MobileControllerButton {
+  primary,
+  secondary1,
+  secondary2,
+  secondary3,
+  secondary4,
+  tertiary1,
 }
