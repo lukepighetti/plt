@@ -412,18 +412,16 @@ mixin MobileControllerRouting on MobileControllerEvents {
 }
 
 class MobileControllerRouter {
-  static const _log = Logger('MobileControllerRouter');
-
   final Map<MobileControllerButton, ButtonRouter> handlePress;
   final void Function(Vector2 vector)? handleStickChanged;
   final Map<AxisDirection, ButtonRouter> handleStickDirection;
-  final bool autoDiagonals;
+  final bool handleDiagonals;
 
   MobileControllerRouter({
     this.handlePress = const {},
     this.handleStickChanged,
     this.handleStickDirection = const {},
-    this.autoDiagonals = true,
+    this.handleDiagonals = false,
   });
 
   final _previousDirections = <AxisDirection>{};
@@ -431,7 +429,7 @@ class MobileControllerRouter {
   void onStickChanged(Vector2 vector) {
     handleStickChanged?.call(vector);
 
-    final directions = autoDiagonals
+    final directions = handleDiagonals
         ? vector.stickDirectionWithDiagonal
         : vector.stickDirection == null
             ? const <AxisDirection>{}

@@ -91,7 +91,7 @@ class MyGame extends FlameGame
 
   @override
   late final mobileControllerRouter = MobileControllerRouter(
-    // TODO: handleStickChanged: (vector) {},
+    handleDiagonals: true,
     handleStickDirection: {
       AxisDirection.left:
           keyboardRouter.handlePress[LogicalKeyboardKey.arrowLeft]!,
