@@ -75,29 +75,40 @@ class MyGame extends FlameGame
     },
     handlePress: {
       LogicalKeyboardKey.arrowUp: ButtonRouter(
-        onDown: () => me.thrusting = true,
-        onUp: () => me.thrusting = false,
+        onDown: () => me.buttonThrusting = 1,
+        onUp: () => me.buttonThrusting = 0,
       ),
       LogicalKeyboardKey.arrowRight: ButtonRouter(
-        onDown: () => me..movingRight = true,
-        onUp: () => me.movingRight = false,
+        onDown: () => me..movingRight = 1,
+        onUp: () => me.movingRight = 0,
       ),
       LogicalKeyboardKey.arrowLeft: ButtonRouter(
-        onDown: () => me..movingLeft = true,
-        onUp: () => me.movingLeft = false,
+        onDown: () => me..movingLeft = 1,
+        onUp: () => me.movingLeft = 0,
       ),
     },
   );
 
   @override
   late final mobileControllerRouter = MobileControllerRouter(
-    handleDiagonals: true,
-    handleStickDirection: {
-      AxisDirection.left:
-          keyboardRouter.handlePress[LogicalKeyboardKey.arrowLeft]!,
-      AxisDirection.right:
-          keyboardRouter.handlePress[LogicalKeyboardKey.arrowRight]!,
-      AxisDirection.up: keyboardRouter.handlePress[LogicalKeyboardKey.arrowUp]!,
+    handleStickChanged: (vector) {
+      if (vector.x > 0) {
+        me.movingRight = vector.x;
+      } else {
+        me.movingRight = 0;
+      }
+
+      if (vector.x < 0) {
+        me.movingLeft = -vector.x;
+      } else {
+        me.movingLeft = 0;
+      }
+
+      if (vector.y < 0) {
+        me.joystickThrusting = -vector.y;
+      } else {
+        me.joystickThrusting = 0;
+      }
     },
     handlePress: {
       MobileControllerButton.primary:
@@ -190,9 +201,10 @@ class Character extends RectangleComponent
   final velocity = Vector2.zero();
   final damping = Vector2.all(1.5);
 
-  var thrusting = false;
-  var movingLeft = false;
-  var movingRight = false;
+  var buttonThrusting = 0.0;
+  var joystickThrusting = 0.0;
+  var movingLeft = 0.0;
+  var movingRight = 0.0;
   Vector2? groundedPosition;
 
   bool get grounded => groundedPosition != null;
@@ -204,17 +216,19 @@ class Character extends RectangleComponent
 
   @override
   void update(double dt) {
+    final _thrusting = (buttonThrusting + joystickThrusting).clamp(0.0, 1.0);
+
     // kinematics
-    if (thrusting) velocity.setFrom(velocity + thrust * dt);
-    if (movingLeft) velocity.setFrom(velocity + moveLeft * dt);
-    if (movingRight) velocity.setFrom(velocity + moveRight * dt);
-    velocity.setFrom(velocity + gravity * dt);
+    velocity.add(thrust.scaled(_thrusting) * dt);
+    velocity.add(moveLeft.scaled(movingLeft) * dt);
+    velocity.add(moveRight.scaled(movingRight) * dt);
+    velocity.add(gravity * dt);
     velocity.damp(damping, dt);
     velocity.limit(maxVelocity);
-    position.setFrom(position + velocity * dt);
+    position.add(velocity * dt);
 
     // collisions
-    if (groundedPosition != null && !thrusting) {
+    if (groundedPosition != null) {
       position.y = min(groundedPosition!.y, position.y);
       position.x = groundedPosition!.x;
       velocity.setZero();
