@@ -2,7 +2,7 @@ import 'dart:math';
 
 import 'package:flame/components.dart';
 import 'package:flame/input.dart';
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Draggable;
 
 import 'logger.dart';
 
@@ -206,4 +206,95 @@ class _TertiaryHudButtonComponent extends HudButtonComponent {
             ),
           ],
         );
+}
+
+class MobileControllerLeft extends HudMarginComponent with Draggable {
+  static const _log = Logger('MobileControllerLeft');
+
+  static const defaultOpacity = 0.7;
+
+  static final baseOffset = Vector2(100, 300);
+
+  MobileControllerLeft()
+      : super(
+          margin: EdgeInsets.only(bottom: 1, left: 1),
+          size: Vector2(300, 400),
+        );
+
+  late final startOffset = Vector2.zero();
+  late final dragOffset = Vector2.zero();
+  late final stickOffset = Vector2.zero();
+
+  late final cardinality = CircleComponent(
+    radius: 75,
+    paint: Paint()..color = Color.fromRGBO(30, 30, 30, defaultOpacity),
+    anchor: Anchor.center,
+  );
+
+  late final stickBackground = CircleComponent(
+    radius: 35,
+    paint: Paint()..color = Color.fromRGBO(10, 10, 10, defaultOpacity),
+    anchor: Anchor.center,
+  );
+
+  late final stick = CircleComponent(
+    radius: 25,
+    paint: Paint()..color = Color.fromRGBO(80, 80, 80, defaultOpacity),
+    anchor: Anchor.center,
+  );
+
+  @override
+  Future<void> onLoad() async {
+    await add(cardinality);
+    await add(stickBackground);
+    await add(stick);
+
+    return super.onLoad();
+  }
+
+  @override
+  bool onDragStart(DragStartInfo info) {
+    startOffset
+      ..setFrom(info.eventPosition.viewport)
+      ..x -= 100
+      ..y -= gameRef.canvasSize.y - 100;
+
+    cardinality.setOpacity(1.0);
+    stickBackground.setOpacity(1.0);
+    stick.setOpacity(1.0);
+
+    return super.onDragStart(info);
+  }
+
+  @override
+  bool onDragUpdate(DragUpdateInfo info) {
+    const maxRadius = 75.0;
+    dragOffset.add(info.delta.viewport);
+    if (dragOffset.length > maxRadius) {
+      stickOffset.setFrom(dragOffset.normalized() * maxRadius);
+    } else {
+      stickOffset.setFrom(dragOffset);
+    }
+    return super.onDragUpdate(info);
+  }
+
+  @override
+  bool onDragEnd(DragEndInfo info) {
+    cardinality.setOpacity(defaultOpacity);
+    stickBackground.setOpacity(defaultOpacity);
+    stick.setOpacity(defaultOpacity);
+    startOffset.setZero();
+    dragOffset.setZero();
+    stickOffset.setZero();
+
+    return super.onDragEnd(info);
+  }
+
+  @override
+  void update(double dt) {
+    cardinality.position.setFrom(baseOffset + startOffset);
+    stickBackground.position.setFrom(baseOffset + startOffset);
+    stick.position.setFrom(baseOffset + startOffset + stickOffset);
+    super.update(dt);
+  }
 }

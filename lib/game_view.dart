@@ -30,6 +30,7 @@ class GameView extends StatelessWidget {
 class MyGame extends FlameGame
     with
         HasCollisionDetection,
+        HasDraggables,
         HasTappables,
         KeyboardEvents,
         KeyboardRouting,
@@ -41,6 +42,7 @@ class MyGame extends FlameGame
   late final Game game = findGame()!;
   late final me = Character();
   late final ground = Ground();
+  late final mobileControllerLeft = MobileControllerLeft();
   late final mobileControllerRight = MobileControllerRight();
 
   @override
@@ -49,6 +51,7 @@ class MyGame extends FlameGame
     await add(ground);
     await add(FpsTextComponent());
     await add(OffscreenCharacter(me));
+    await add(mobileControllerLeft);
     await add(mobileControllerRight);
     camera.followComponent(ground, relativeOffset: Anchor(0.05, 0.95));
   }
