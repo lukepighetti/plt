@@ -344,6 +344,41 @@ extension MobileControllerVector2 on Vector2 {
 
     return null;
   }
+
+  Set<AxisDirection> get stickDirectionWithDiagonal {
+    if (length > 0.5) {
+      final angle = screenAngle();
+
+      const nne = 1 * pi / 8;
+      const ene = 3 * pi / 8;
+      const ese = 5 * pi / 8;
+      const sse = 7 * pi / 8;
+      const ssw = -7 * pi / 8;
+      const wsw = -5 * pi / 8;
+      const wnw = -3 * pi / 8;
+      const nnw = -1 * pi / 8;
+
+      if (angle > nnw && angle <= nne) {
+        return {AxisDirection.up};
+      } else if (angle > nne && angle <= ene) {
+        return {AxisDirection.up, AxisDirection.right};
+      } else if (angle > ene && angle <= ese) {
+        return {AxisDirection.right};
+      } else if (angle > ese && angle <= sse) {
+        return {AxisDirection.right, AxisDirection.down};
+      } else if (angle > sse || angle <= ssw) {
+        return {AxisDirection.down};
+      } else if (angle > ssw && angle <= wsw) {
+        return {AxisDirection.down, AxisDirection.left};
+      } else if (angle > wsw && angle <= wnw) {
+        return {AxisDirection.left};
+      } else {
+        return {AxisDirection.left, AxisDirection.up};
+      }
+    }
+
+    return const {};
+  }
 }
 
 mixin MobileControllerEvents on FlameGame {
@@ -382,28 +417,43 @@ class MobileControllerRouter {
   final Map<MobileControllerButton, ButtonRouter> handlePress;
   final void Function(Vector2 vector)? handleStickChanged;
   final Map<AxisDirection, ButtonRouter> handleStickDirection;
+  final bool autoDiagonals;
 
   MobileControllerRouter({
     this.handlePress = const {},
     this.handleStickChanged,
     this.handleStickDirection = const {},
+    this.autoDiagonals = true,
   });
 
-  AxisDirection? _previousStickDirection;
+  final _previousDirections = <AxisDirection>{};
 
   void onStickChanged(Vector2 vector) {
     handleStickChanged?.call(vector);
 
-    final direction = vector.stickDirection;
-    if (direction == _previousStickDirection) {
-      return;
-    } else if (direction != null) {
-      handleStickDirection[direction]?.onDown();
-      handleStickDirection[_previousStickDirection]?.onUp?.call();
-    } else {
-      handleStickDirection[_previousStickDirection]?.onUp?.call();
+    final directions = autoDiagonals
+        ? vector.stickDirectionWithDiagonal
+        : vector.stickDirection == null
+            ? const <AxisDirection>{}
+            : {vector.stickDirection!};
+
+    final stoppedDirections =
+        _previousDirections.where((e) => !directions.contains(e));
+
+    final newDirections =
+        directions.where((e) => !_previousDirections.contains(e));
+
+    for (final direction in stoppedDirections) {
+      handleStickDirection[direction]?.onUp?.call();
     }
-    _previousStickDirection = direction;
+
+    for (final direction in newDirections) {
+      handleStickDirection[direction]?.onDown();
+    }
+
+    _previousDirections
+      ..clear()
+      ..addAll(directions);
   }
 
   void onButtonDown(MobileControllerButton button) {
