@@ -69,3 +69,15 @@ class ButtonRouter {
     this.onUp,
   });
 }
+
+class JoystickButtonValue {
+  var buttonValue = false;
+  var joystickValue = 0.0;
+
+  double get value => ((buttonValue ? 1 : 0) + joystickValue).clamp(0.0, 1.0);
+
+  void setZero() {
+    buttonValue = false;
+    joystickValue = 0.0;
+  }
+}
