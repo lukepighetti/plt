@@ -212,16 +212,12 @@ class _TertiaryHudButtonComponent extends HudButtonComponent {
 
 class MobileControllerLeft extends HudMarginComponent<MobileControllerEvents>
     with Draggable {
-  static const _log = Logger('MobileControllerLeft');
-
   static const defaultOpacity = 0.7;
-
-  static final baseOffset = Vector2(100, 300);
+  static final centerPoint = Vector2(110, 100);
 
   MobileControllerLeft()
       : super(
           margin: EdgeInsets.only(bottom: 1, left: 1),
-          size: Vector2(300, 400),
         );
 
   late final startOffset = Vector2.zero();
@@ -230,20 +226,20 @@ class MobileControllerLeft extends HudMarginComponent<MobileControllerEvents>
   late final stickVector = Vector2.zero();
 
   late final cardinality = CircleComponent(
-    radius: 75,
+    radius: 110 / 2,
     paint: Paint()..color = Color.fromRGBO(30, 30, 30, defaultOpacity),
     anchor: Anchor.center,
   );
 
   late final stickBackground = CircleComponent(
-    radius: 35,
+    radius: 40 / 2,
     paint: Paint()..color = Color.fromRGBO(10, 10, 10, defaultOpacity),
     anchor: Anchor.center,
   );
 
   late final stick = CircleComponent(
-    radius: 25,
-    paint: Paint()..color = Color.fromRGBO(80, 80, 80, defaultOpacity),
+    radius: 35 / 2,
+    paint: Paint()..color = Color.fromRGBO(130, 130, 130, defaultOpacity),
     anchor: Anchor.center,
   );
 
@@ -256,11 +252,17 @@ class MobileControllerLeft extends HudMarginComponent<MobileControllerEvents>
   }
 
   @override
+  void onGameResize(Vector2 _) {
+    size.setFrom(Vector2(gameRef.canvasSize.x / 2, gameRef.canvasSize.y));
+    super.onGameResize(_);
+  }
+
+  @override
   bool onDragStart(DragStartInfo info) {
     startOffset
       ..setFrom(info.eventPosition.viewport)
-      ..x -= 100
-      ..y -= gameRef.canvasSize.y - 100;
+      ..x -= centerPoint.x
+      ..y -= gameRef.canvasSize.y - centerPoint.x;
     cardinality.setOpacity(1.0);
     stickBackground.setOpacity(1.0);
     stick.setOpacity(1.0);
@@ -269,7 +271,7 @@ class MobileControllerLeft extends HudMarginComponent<MobileControllerEvents>
 
   @override
   bool onDragUpdate(DragUpdateInfo info) {
-    const maxLength = 75.0;
+    final maxLength = cardinality.radius;
     dragOffset.add(info.delta.viewport);
     stickOffset
       ..setFrom(dragOffset)
@@ -304,6 +306,7 @@ class MobileControllerLeft extends HudMarginComponent<MobileControllerEvents>
 
   @override
   void update(double dt) {
+    final baseOffset = Vector2(centerPoint.x, size.y - centerPoint.y);
     cardinality.position.setFrom(baseOffset + startOffset);
     stickBackground.position.setFrom(baseOffset + startOffset);
     stick.position.setFrom(baseOffset + startOffset + stickOffset);
