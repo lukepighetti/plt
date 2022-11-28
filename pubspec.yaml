@@ -6,7 +6,9 @@ environment:
   sdk: '>=2.18.4 <3.0.0'
 
 dependencies:
+  collection: ^1.16.0
   flame: ^1.4.0
+  flame_forge2d: ^0.12.3
   flutter:
     sdk: flutter
   mqtt_client: ^9.7.2
