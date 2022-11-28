@@ -91,6 +91,7 @@ class MyGame extends FlameGame
 
   @override
   late final mobileControllerRouter = MobileControllerRouter(
+    supportedStickDirections: {AxisDirection.left, AxisDirection.right},
     handleStickChanged: (vector) {
       if (vector.x > 0) {
         me.movingRight.joystickValue = vector.x;
@@ -102,12 +103,6 @@ class MyGame extends FlameGame
         me.movingLeft.joystickValue = -vector.x;
       } else {
         me.movingLeft.joystickValue = 0;
-      }
-
-      if (vector.y < 0) {
-        me.thrusting.joystickValue = -vector.y;
-      } else {
-        me.thrusting.joystickValue = 0;
       }
     },
     handlePress: {

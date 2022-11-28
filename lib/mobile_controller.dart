@@ -6,84 +6,85 @@ import 'package:flame/input.dart';
 import 'package:flutter/material.dart' hide Draggable;
 
 import 'keyboard_routing.dart';
-import 'logger.dart';
 
 class MobileControllerRight extends HudMarginComponent<MobileControllerEvents> {
-  static const _log = Logger('MobileControllerRight');
+  static final _center = Vector2(-110, -100);
 
   MobileControllerRight()
       : super(
-          margin: EdgeInsets.only(bottom: 50, right: 50),
-          anchor: Anchor.bottomRight,
+          margin: EdgeInsets.only(bottom: -_center.y, right: -_center.x),
         );
 
-  late final primary = _PrimaryHudButtonComponent(
-    onPressed: () => gameRef.onButtonDown(MobileControllerButton.primary),
-    onReleased: () => gameRef.onButtonUp(MobileControllerButton.primary),
-    buttonColor: Colors.green,
-    pressedButtonColor: Colors.lightGreen,
-  );
-
-  late final secondary1 = _SecondaryHudButtonComponent(
-    onPressed: () => gameRef.onButtonDown(MobileControllerButton.secondary1),
-    onReleased: () => gameRef.onButtonUp(MobileControllerButton.secondary1),
-    text: 'D',
-    position: 1,
-    buttonColor: Colors.blue,
-    pressedButtonColor: Colors.lightBlue,
-  );
-
-  late final secondary2 = _SecondaryHudButtonComponent(
-    onPressed: () => gameRef.onButtonDown(MobileControllerButton.secondary2),
-    onReleased: () => gameRef.onButtonUp(MobileControllerButton.secondary2),
-    text: 'B',
-    position: 2,
-    buttonColor: Colors.blue,
-    pressedButtonColor: Colors.lightBlue,
-  );
-
-  late final secondary3 = _SecondaryHudButtonComponent(
-    onPressed: () => gameRef.onButtonDown(MobileControllerButton.secondary3),
-    onReleased: () => gameRef.onButtonUp(MobileControllerButton.secondary3),
-    text: 'C',
-    position: 3,
-    buttonColor: Colors.blue,
-    pressedButtonColor: Colors.lightBlue,
-  );
-
-  late final secondary4 = _SecondaryHudButtonComponent(
-    onPressed: () => gameRef.onButtonDown(MobileControllerButton.secondary4),
-    onReleased: () => gameRef.onButtonUp(MobileControllerButton.secondary4),
-    text: 'E',
-    position: 4,
-    buttonColor: Colors.blue,
-    pressedButtonColor: Colors.lightBlue,
-  );
-
-  late final tertiary1 = _TertiaryHudButtonComponent(
-    onPressed: () => gameRef.onButtonDown(MobileControllerButton.tertiary1),
-    onReleased: () => gameRef.onButtonUp(MobileControllerButton.tertiary1),
-    text: 'F',
-    position: 2,
-    buttonColor: Colors.deepOrange.shade800,
-    pressedButtonColor: Colors.orange,
-  );
+  late final buttons = {
+    MobileControllerButton.primary: _PrimaryHudButtonComponent(
+      onPressed: () => gameRef.onButtonDown(MobileControllerButton.primary),
+      onReleased: () => gameRef.onButtonUp(MobileControllerButton.primary),
+      buttonColor: Colors.green,
+      pressedButtonColor: Colors.lightGreen,
+    ),
+    MobileControllerButton.secondary1: _SecondaryHudButtonComponent(
+      onPressed: () => gameRef.onButtonDown(MobileControllerButton.secondary1),
+      onReleased: () => gameRef.onButtonUp(MobileControllerButton.secondary1),
+      text: 'D',
+      position: 1,
+      buttonColor: Colors.blue,
+      pressedButtonColor: Colors.lightBlue,
+    ),
+    MobileControllerButton.secondary2: _SecondaryHudButtonComponent(
+      onPressed: () => gameRef.onButtonDown(MobileControllerButton.secondary2),
+      onReleased: () => gameRef.onButtonUp(MobileControllerButton.secondary2),
+      text: 'B',
+      position: 2,
+      buttonColor: Colors.blue,
+      pressedButtonColor: Colors.lightBlue,
+    ),
+    MobileControllerButton.secondary3: _SecondaryHudButtonComponent(
+      onPressed: () => gameRef.onButtonDown(MobileControllerButton.secondary3),
+      onReleased: () => gameRef.onButtonUp(MobileControllerButton.secondary3),
+      text: 'C',
+      position: 3,
+      buttonColor: Colors.blue,
+      pressedButtonColor: Colors.lightBlue,
+    ),
+    MobileControllerButton.secondary4: _SecondaryHudButtonComponent(
+      onPressed: () => gameRef.onButtonDown(MobileControllerButton.secondary4),
+      onReleased: () => gameRef.onButtonUp(MobileControllerButton.secondary4),
+      text: 'E',
+      position: 4,
+      buttonColor: Colors.blue,
+      pressedButtonColor: Colors.lightBlue,
+    ),
+    MobileControllerButton.tertiary1: _TertiaryHudButtonComponent(
+      onPressed: () => gameRef.onButtonDown(MobileControllerButton.tertiary1),
+      onReleased: () => gameRef.onButtonUp(MobileControllerButton.tertiary1),
+      text: 'F',
+      position: 2,
+      buttonColor: Colors.deepOrange.shade800,
+      pressedButtonColor: Colors.orange,
+    ),
+  };
 
   @override
   Future<void> onLoad() async {
-    await add(primary);
-    await add(secondary1);
-    await add(secondary2);
-    await add(secondary3);
-    await add(secondary4);
-    await add(tertiary1);
-
+    await updateButtonVisibility();
     return super.onLoad();
+  }
+
+  Future<void> updateButtonVisibility() async {
+    final visible = gameRef.getSupportedMobileControllerButtons();
+    for (final button in MobileControllerButton.values) {
+      final buttonComponent = buttons[button]!;
+      if (visible.contains(button) && buttonComponent.parent == null) {
+        await add(buttons[button]!);
+      } else if (buttonComponent.parent != null) {
+        remove(buttons[button]!);
+      }
+    }
   }
 }
 
 class _PrimaryHudButtonComponent extends HudButtonComponent {
-  static const primaryButtonRadius = 40.0;
+  static const primaryButtonRadius = 80 / 2;
 
   _PrimaryHudButtonComponent({
     required VoidCallback onPressed,
@@ -91,9 +92,7 @@ class _PrimaryHudButtonComponent extends HudButtonComponent {
     required Color buttonColor,
     required Color pressedButtonColor,
   }) : super(
-          // TODO: find a way to actually center these
-          anchor: Anchor(.85, .75),
-          position: Vector2(0, -10),
+          anchor: Anchor.center,
           onPressed: onPressed,
           onReleased: onReleased,
           button: CircleComponent(
@@ -123,7 +122,8 @@ class _PrimaryHudButtonComponent extends HudButtonComponent {
 }
 
 class _SecondaryHudButtonComponent extends HudButtonComponent {
-  static const _buttonRadius = 25.0;
+  static const _buttonRadius = 50 / 2;
+  static const _patternRadius = 167 / 2;
   static const _angularSpacing = 1 * pi / 4;
 
   _SecondaryHudButtonComponent({
@@ -134,11 +134,11 @@ class _SecondaryHudButtonComponent extends HudButtonComponent {
     required Color buttonColor,
     required Color pressedButtonColor,
   }) : super(
-          // TODO: find a way to actually center these
-          anchor: Anchor(1.05, 1.08),
+          anchor: Anchor.center,
           onPressed: onPressed,
           onReleased: onReleased,
-          position: Vector2.all(-65)
+          position: Vector2(0, -_patternRadius)
+            ..rotate(-pi / 4)
             ..rotate(position * _angularSpacing - 2.5 * _angularSpacing),
           button: CircleComponent(
             radius: _buttonRadius,
@@ -167,7 +167,8 @@ class _SecondaryHudButtonComponent extends HudButtonComponent {
 }
 
 class _TertiaryHudButtonComponent extends HudButtonComponent {
-  static const _buttonRadius = 20.0;
+  static const _buttonRadius = 45 / 2;
+  static const _patternRadius = 275 / 2;
   static const _angularSpacing = 1 * pi / 4;
 
   _TertiaryHudButtonComponent({
@@ -178,11 +179,11 @@ class _TertiaryHudButtonComponent extends HudButtonComponent {
     required Color buttonColor,
     required Color pressedButtonColor,
   }) : super(
-          // TODO: find a way to actually center these
-          anchor: Anchor(1.2, 1.2),
+          anchor: Anchor.center,
           onPressed: onPressed,
           onReleased: onReleased,
-          position: Vector2.all(-105)
+          position: Vector2(0, -_patternRadius)
+            ..rotate(-pi / 4)
             ..rotate(position * _angularSpacing - 2 * _angularSpacing),
           button: CircleComponent(
             radius: _buttonRadius,
@@ -213,7 +214,7 @@ class _TertiaryHudButtonComponent extends HudButtonComponent {
 class MobileControllerLeft extends HudMarginComponent<MobileControllerEvents>
     with Draggable {
   static const defaultOpacity = 0.7;
-  static final centerPoint = Vector2(110, 100);
+  static final _center = Vector2(110, 100);
 
   MobileControllerLeft()
       : super(
@@ -248,7 +249,28 @@ class MobileControllerLeft extends HudMarginComponent<MobileControllerEvents>
     await add(cardinality);
     await add(stickBackground);
     await add(stick);
+    await updateSupportedStickDirections();
     return super.onLoad();
+  }
+
+  late final _directionArrows = {
+    AxisDirection.up: _StickDirectionIndicator(this, 1),
+    AxisDirection.right: _StickDirectionIndicator(this, 2),
+    AxisDirection.down: _StickDirectionIndicator(this, 3),
+    AxisDirection.left: _StickDirectionIndicator(this, 4),
+  };
+
+  Future<void> updateSupportedStickDirections() async {
+    final supported = gameRef.getSupportedStickDirections();
+    for (final direction in AxisDirection.values) {
+      final component = _directionArrows[direction]!;
+      final isSupported = supported.contains(direction);
+      if (isSupported && component.parent == null) {
+        await cardinality.add(component);
+      } else if (!isSupported && component.parent != null) {
+        cardinality.remove(component);
+      }
+    }
   }
 
   @override
@@ -261,11 +283,12 @@ class MobileControllerLeft extends HudMarginComponent<MobileControllerEvents>
   bool onDragStart(DragStartInfo info) {
     startOffset
       ..setFrom(info.eventPosition.viewport)
-      ..x -= centerPoint.x
-      ..y -= gameRef.canvasSize.y - centerPoint.x;
+      ..x -= _center.x
+      ..y -= gameRef.canvasSize.y - _center.x;
     cardinality.setOpacity(1.0);
     stickBackground.setOpacity(1.0);
     stick.setOpacity(1.0);
+    _directionArrows.forEach((_, e) => e.setOpacity(1.0));
     return super.onDragStart(info);
   }
 
@@ -285,6 +308,7 @@ class MobileControllerLeft extends HudMarginComponent<MobileControllerEvents>
     cardinality.setOpacity(defaultOpacity);
     stickBackground.setOpacity(defaultOpacity);
     stick.setOpacity(defaultOpacity);
+    _directionArrows.forEach((_, e) => e.setOpacity(defaultOpacity));
     startOffset.setZero();
     dragOffset.setZero();
     stickOffset.setZero();
@@ -306,12 +330,29 @@ class MobileControllerLeft extends HudMarginComponent<MobileControllerEvents>
 
   @override
   void update(double dt) {
-    final baseOffset = Vector2(centerPoint.x, size.y - centerPoint.y);
+    final baseOffset = Vector2(_center.x, size.y - _center.y);
     cardinality.position.setFrom(baseOffset + startOffset);
     stickBackground.position.setFrom(baseOffset + startOffset);
     stick.position.setFrom(baseOffset + startOffset + stickOffset);
     super.update(dt);
   }
+}
+
+class _StickDirectionIndicator extends CircleComponent {
+  _StickDirectionIndicator(MobileControllerLeft p, int position)
+      : super(
+          radius: 5,
+          paint: Paint()
+            ..color = Color.fromRGBO(
+                200, 200, 200, MobileControllerLeft.defaultOpacity),
+          anchor: Anchor.center,
+          position: Vector2(p.cardinality.radius, p.cardinality.radius)
+            ..y -= p.cardinality.radius - p.stickBackground.radius
+            ..rotate(
+              (position - 1) * pi / 2,
+              center: Vector2(p.cardinality.radius, p.cardinality.radius),
+            ),
+        );
 }
 
 extension MobileControllerVector2 on Vector2 {
@@ -390,6 +431,10 @@ mixin MobileControllerEvents on FlameGame {
   void onButtonDown(MobileControllerButton button) {}
 
   void onButtonUp(MobileControllerButton button) {}
+
+  Set<MobileControllerButton> getSupportedMobileControllerButtons() => {};
+
+  Set<AxisDirection> getSupportedStickDirections() => {};
 }
 
 mixin MobileControllerRouting on MobileControllerEvents {
@@ -411,6 +456,19 @@ mixin MobileControllerRouting on MobileControllerEvents {
     super.onButtonUp(button);
   }
 
+  @override
+  Set<MobileControllerButton> getSupportedMobileControllerButtons() {
+    return mobileControllerRouter.handlePress.keys.toSet();
+  }
+
+  @override
+  Set<AxisDirection> getSupportedStickDirections() {
+    return {
+      ...mobileControllerRouter.supportedStickDirections,
+      ...mobileControllerRouter.handleStickDirection.keys,
+    };
+  }
+
   MobileControllerRouter get mobileControllerRouter;
 }
 
@@ -419,11 +477,13 @@ class MobileControllerRouter {
   final void Function(Vector2 vector)? handleStickChanged;
   final Map<AxisDirection, ButtonRouter> handleStickDirection;
   final bool handleDiagonals;
+  final Set<AxisDirection> supportedStickDirections;
 
   MobileControllerRouter({
     this.handlePress = const {},
     this.handleStickChanged,
     this.handleStickDirection = const {},
+    this.supportedStickDirections = const {...AxisDirection.values},
     this.handleDiagonals = false,
   });
 
