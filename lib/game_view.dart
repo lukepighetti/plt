@@ -12,16 +12,19 @@ import 'package:plt/mobile_controller.dart';
 
 import 'collision_routing.dart';
 import 'keyboard_routing.dart';
+import 'main.dart';
 
 final gameFocusNode = FocusNode();
 
 class GameView extends StatelessWidget {
-  const GameView({super.key});
+  const GameView({super.key, required this.gameState});
+
+  final MyHomePageState gameState;
 
   @override
   Widget build(BuildContext context) {
     return GameWidget.controlled(
-      gameFactory: () => MyGame(),
+      gameFactory: () => MyGame(state: gameState),
       focusNode: gameFocusNode,
     );
   }
@@ -37,11 +40,12 @@ class MyGame extends FlameGame
         MobileControllerEvents,
         MobileControllerRouting,
         SingleGameInstance {
-  MyGame() {
+  MyGame({required this.state}) {
     this.camera.zoom = 40.0;
   }
 
   late final Game game = findGame()!;
+  final MyHomePageState state;
   late final me = Character();
   late final ground = Ground();
   late final mobileControllerLeft = MobileControllerLeft();
@@ -178,7 +182,7 @@ class OffscreenCharacter extends PositionComponent with HasGameRef<MyGame> {
 }
 
 class Character extends RectangleComponent
-    with CollisionCallbacks, CollisionRouting {
+    with CollisionCallbacks, CollisionRouting, HasGameRef<MyGame> {
   Character()
       : super(
           position: Vector2(1, -10),
@@ -208,8 +212,23 @@ class Character extends RectangleComponent
     add(RectangleHitbox(size: size));
   }
 
+  void onNetworkUpdate(double dt) {
+    gameRef.state.broadcastCharacterPosition(position);
+  }
+
+  static const _networkUpdatePeriod = 0.5;
+  var _dtSinceNetworkUpdate = 0.0;
+
   @override
   void update(double dt) {
+    // network updates
+    _dtSinceNetworkUpdate += dt;
+    if (_dtSinceNetworkUpdate > _networkUpdatePeriod) {
+      final timeOverage = _dtSinceNetworkUpdate - _networkUpdatePeriod;
+      onNetworkUpdate(_dtSinceNetworkUpdate);
+      _dtSinceNetworkUpdate = 0.0 + timeOverage;
+    }
+
     // kinematics
     velocity.add(thrust.scaled(thrusting.value) * dt);
     velocity.add(moveLeft.scaled(movingLeft.value) * dt);
