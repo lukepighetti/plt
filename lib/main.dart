@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 
-import 'package:flame/components.dart';
+import 'package:flame/components.dart' hide Timer;
 import 'package:flutter/material.dart';
 import 'package:mqtt_client/mqtt_browser_client.dart';
 import 'package:mqtt_client/mqtt_client.dart';
@@ -12,6 +12,7 @@ import 'game_view.dart';
 import 'logger.dart';
 
 late final SharedPreferences prefs;
+const showMyGhost = false;
 
 Future<void> main() async {
   prefs = await SharedPreferences.getInstance();
@@ -45,6 +46,7 @@ class MyHomePageState extends State<MyHomePage> {
 
   var userName = prefs.getString('userName') ?? '';
   var userId = prefs.getString('userId') ?? '';
+  Timer? nameBroadcastingTimer;
 
   @override
   void initState() {
@@ -55,24 +57,29 @@ class MyHomePageState extends State<MyHomePage> {
       prefs.setString('userId', userId);
     }
 
+    nameBroadcastingTimer = Timer.periodic(
+      Duration(seconds: 5),
+      (_) => broadcastName(),
+    );
+
     super.initState();
   }
 
   @override
   void dispose() {
-    client.unsubscribe('#');
-    subscription?.cancel();
     usernameController.dispose();
     usernameFocusNode.dispose();
+    nameBroadcastingTimer?.cancel();
     super.dispose();
   }
 
-  final client = MqttBrowserClient('wss://plt-mqtt.ngrok.io', '');
+  static final client = MqttBrowserClient('wss://plt-mqtt.ngrok.io', '');
 
   bool get isConnected =>
       client.connectionStatus?.state == MqttConnectionState.connected;
 
-  StreamSubscription? subscription;
+  static StreamSubscription? sub1;
+
   Future<void> setupMqtt() async {
     client.port = 443;
     client.setProtocolV311();
@@ -82,7 +89,7 @@ class MyHomePageState extends State<MyHomePage> {
 
     try {
       _mqttLog.i("Connecting to MQTT server");
-      if (!isConnected) await client.connect();
+      await client.connect();
       // dirty hax, dirty hax, dirty hax
       setState(() {});
       _mqttLog.i("Connected to MQTT server");
@@ -97,8 +104,8 @@ class MyHomePageState extends State<MyHomePage> {
       broadcastName();
     }
 
-    subscription?.cancel();
-    subscription = client.updates!.listen((batch) {
+    sub1?.cancel();
+    sub1 = client.updates!.listen((batch) {
       for (final message in batch) {
         final p = message.payload;
         if (p is! MqttPublishMessage) continue;
@@ -116,7 +123,7 @@ class MyHomePageState extends State<MyHomePage> {
     });
   }
 
-  final _userNameByUserId = <String, String>{};
+  final userNameByUserId = <String, String>{};
 
   void broadcastName() {
     if (!isConnected) return;
@@ -131,28 +138,43 @@ class MyHomePageState extends State<MyHomePage> {
     final data = jsonDecode(pt);
     final userId = data[0];
     final userName = data[1];
-    if (userId == this.userId) return;
-    _userNameByUserId[userId] = userName;
+    if (!showMyGhost && userId == this.userId) return;
+    userNameByUserId[userId] = userName;
   }
 
-  final _userPositionByUserId = <String, Vector2>{};
+  final userPositionByUserId = <String, PositionUpdate>{};
 
-  void broadcastCharacterPosition(Vector2 gameCoordinates) {
+  void broadcastCharacterPosition(
+    Vector2 position,
+    Vector2 velocity,
+    Vector2 acceleration,
+  ) {
     if (!isConnected) return;
     final builder = MqttClientPayloadBuilder()
-      ..addString(jsonEncode([userId, gameCoordinates.toString()]));
+      ..addString(jsonEncode([
+        DateTime.now().millisecondsSinceEpoch,
+        userId,
+        position.toString(),
+        velocity.toString(),
+        acceleration.toString(),
+      ]));
     client.publishMessage(
         'broadcast-character-position', MqttQos.atMostOnce, builder.payload!);
   }
 
   void _handleBroadcastCharacterPosition(String pt) {
     final data = jsonDecode(pt);
-    final userId = data[0];
-    if (userId == this.userId) return;
-    final gameCoordinates = jsonDecode(data[1]);
-    final x = gameCoordinates[0];
-    final y = gameCoordinates[1];
-    _userPositionByUserId[userId] = Vector2(x, y);
+    final time = DateTime.fromMillisecondsSinceEpoch(data[0]);
+    final userId = data[1];
+    if (!showMyGhost && userId == this.userId) return;
+    final positionData = jsonDecode(data[2]);
+    final position = Vector2(positionData[0], positionData[1]);
+    final velocityData = jsonDecode(data[3]);
+    final velocity = Vector2(velocityData[0], velocityData[1]);
+    final accelerationData = jsonDecode(data[4]);
+    final acceleration = Vector2(accelerationData[0], accelerationData[1]);
+    userPositionByUserId[userId] =
+        PositionUpdate(time, position, velocity, acceleration);
   }
 
   void _submitName() {
@@ -284,4 +306,12 @@ class MyHomePageState extends State<MyHomePage> {
       ),
     );
   }
+}
+
+class PositionUpdate {
+  final DateTime sentAt;
+  final Vector2 position;
+  final Vector2 velocity;
+  final Vector2 acceleration;
+  PositionUpdate(this.sentAt, this.position, this.velocity, this.acceleration);
 }

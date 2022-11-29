@@ -46,10 +46,11 @@ class MyGame extends FlameGame
 
   late final Game game = findGame()!;
   final MyHomePageState state;
-  late final me = Character();
-  late final ground = Ground();
-  late final mobileControllerLeft = MobileControllerLeft();
-  late final mobileControllerRight = MobileControllerRight();
+  final me = LocallyControlledCharater();
+  final ground = Ground();
+  final mobileControllerLeft = MobileControllerLeft();
+  final mobileControllerRight = MobileControllerRight();
+  final remoteCharacters = <String, RemoteControlledCharacter>{};
 
   @override
   Future<void> onLoad() async {
@@ -64,6 +65,17 @@ class MyGame extends FlameGame
 
   @override
   void update(double dt) {
+    final userIds = state.userNameByUserId.keys;
+
+    for (final userId in userIds) {
+      final character = remoteCharacters[userId];
+      if (character == null) {
+        final newCharacter = RemoteControlledCharacter(state, userId);
+        remoteCharacters[userId] = newCharacter;
+        add(newCharacter);
+      }
+    }
+
     super.update(dt);
   }
 
@@ -181,7 +193,79 @@ class OffscreenCharacter extends PositionComponent with HasGameRef<MyGame> {
   }
 }
 
-class Character extends RectangleComponent
+class RemoteControlledCharacter extends Character with RemoteCharacterControl {
+  RemoteControlledCharacter(this.state, this.userId);
+
+  @override
+  final MyHomePageState state;
+
+  @override
+  final String userId;
+}
+
+mixin RemoteCharacterControl on Character {
+  MyHomePageState get state;
+
+  String get userId;
+
+  final remoteAcceleration = Vector2.zero();
+
+  late var updatedAt = DateTime.now();
+
+  @override
+  void update(double dt) {
+    final newPosition = state.userPositionByUserId.remove(userId);
+    if (newPosition != null && newPosition.sentAt.isAfter(updatedAt)) {
+      position.setFrom(newPosition.position);
+      velocity.setFrom(newPosition.velocity);
+
+      remoteAcceleration.setFrom(newPosition.acceleration);
+      updatedAt = newPosition.sentAt;
+    }
+
+    velocity.add(remoteAcceleration * dt);
+    super.update(dt);
+  }
+}
+
+class LocallyControlledCharater = Character with LocalCharacterControl;
+
+mixin LocalCharacterControl on Character {
+  var thrusting = JoystickButtonValue();
+  var movingLeft = JoystickButtonValue();
+  var movingRight = JoystickButtonValue();
+
+  void onNetworkUpdate(Vector2 acceleration) {
+    _dtSinceNetworkUpdate = 0.0;
+    gameRef.state.broadcastCharacterPosition(position, velocity, acceleration);
+  }
+
+  static const _networkUpdatePeriod = 0.5;
+
+  var _dtSinceNetworkUpdate = 0.0;
+
+  final lastAcceleration = Vector2.zero();
+  @override
+  void update(double dt) {
+    final acceleration = thrust.scaled(thrusting.value) +
+        moveLeft.scaled(movingLeft.value) +
+        moveRight.scaled(movingRight.value);
+
+    velocity.add(acceleration * dt);
+
+    // network updates
+    _dtSinceNetworkUpdate += dt;
+    if (_dtSinceNetworkUpdate > _networkUpdatePeriod ||
+        lastAcceleration != acceleration) {
+      onNetworkUpdate(acceleration);
+    }
+
+    lastAcceleration.setFrom(acceleration);
+    super.update(dt);
+  }
+}
+
+abstract class Character extends RectangleComponent
     with CollisionCallbacks, CollisionRouting, HasGameRef<MyGame> {
   Character()
       : super(
@@ -190,19 +274,16 @@ class Character extends RectangleComponent
           paint: Paint()..color = Colors.pink.shade300,
         );
 
-  static final gravity = Vector2(0, 10);
-  static final thrust = Vector2(0, -90);
-  static final moveLeft = Vector2(-50, 0);
-  static final moveRight = Vector2(-moveLeft.x, moveLeft.y);
-  static final maxVelocity = Vector2.all(40);
+  final gravity = Vector2(0, 10);
+  final thrust = Vector2(0, -90);
+  final moveLeft = Vector2(-50, 0);
+  late final moveRight = Vector2(-moveLeft.x, moveLeft.y);
+  final maxVelocity = Vector2.all(40);
 
   late final position = super.position;
   final velocity = Vector2.zero();
   final damping = Vector2.all(1.5);
 
-  var thrusting = JoystickButtonValue();
-  var movingLeft = JoystickButtonValue();
-  var movingRight = JoystickButtonValue();
   Vector2? groundedPosition;
 
   bool get grounded => groundedPosition != null;
@@ -212,27 +293,9 @@ class Character extends RectangleComponent
     add(RectangleHitbox(size: size));
   }
 
-  void onNetworkUpdate(double dt) {
-    gameRef.state.broadcastCharacterPosition(position);
-  }
-
-  static const _networkUpdatePeriod = 0.5;
-  var _dtSinceNetworkUpdate = 0.0;
-
   @override
   void update(double dt) {
-    // network updates
-    _dtSinceNetworkUpdate += dt;
-    if (_dtSinceNetworkUpdate > _networkUpdatePeriod) {
-      final timeOverage = _dtSinceNetworkUpdate - _networkUpdatePeriod;
-      onNetworkUpdate(_dtSinceNetworkUpdate);
-      _dtSinceNetworkUpdate = 0.0 + timeOverage;
-    }
-
     // kinematics
-    velocity.add(thrust.scaled(thrusting.value) * dt);
-    velocity.add(moveLeft.scaled(movingLeft.value) * dt);
-    velocity.add(moveRight.scaled(movingRight.value) * dt);
     velocity.add(gravity * dt);
     velocity.damp(damping, dt);
     velocity.limit(maxVelocity);
