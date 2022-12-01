@@ -1,18 +1,23 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:math';
 
 import 'package:flame/components.dart' hide Timer;
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:mqtt_client/mqtt_browser_client.dart';
 import 'package:mqtt_client/mqtt_client.dart';
+import 'package:nanoid/nanoid.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:uuid/uuid.dart';
 
 import 'game_view.dart';
 import 'logger.dart';
 
 late final SharedPreferences prefs;
-const showMyGhost = false;
+
+const showMyGhost = kDebugMode;
+const fakeJitter = 0;
+const fakeDelay = 0;
 
 Future<void> main() async {
   prefs = await SharedPreferences.getInstance();
@@ -53,7 +58,7 @@ class MyHomePageState extends State<MyHomePage> {
     setupMqtt();
 
     if (userId.isEmpty) {
-      userId = Uuid().v4();
+      userId = nanoid(4);
       prefs.setString('userId', userId);
     }
 
@@ -144,28 +149,36 @@ class MyHomePageState extends State<MyHomePage> {
 
   final userPositionByUserId = <String, PositionUpdate>{};
 
+  final messageTime = Stopwatch()..start();
+
   void broadcastCharacterPosition(
     Vector2 position,
     Vector2 velocity,
     Vector2 acceleration,
-  ) {
+  ) async {
     if (!isConnected) return;
+
     final builder = MqttClientPayloadBuilder()
       ..addString(jsonEncode([
-        DateTime.now().millisecondsSinceEpoch,
+        messageTime.elapsedMilliseconds,
         userId,
         position.toString(),
         velocity.toString(),
         acceleration.toString(),
       ]));
+
+    if (fakeJitter > 0)
+      await Future.delayed(
+          Duration(milliseconds: Random().nextInt(fakeJitter)));
+    if (fakeDelay > 0) await Future.delayed(Duration(milliseconds: fakeDelay));
     client.publishMessage(
         'broadcast-character-position', MqttQos.atMostOnce, builder.payload!);
   }
 
   void _handleBroadcastCharacterPosition(String pt) {
     final data = jsonDecode(pt);
-    final time = DateTime.fromMillisecondsSinceEpoch(data[0]);
     final userId = data[1];
+    final elapsed = Duration(milliseconds: data[0]);
     if (!showMyGhost && userId == this.userId) return;
     final positionData = jsonDecode(data[2]);
     final position = Vector2(positionData[0], positionData[1]);
@@ -174,7 +187,7 @@ class MyHomePageState extends State<MyHomePage> {
     final accelerationData = jsonDecode(data[4]);
     final acceleration = Vector2(accelerationData[0], accelerationData[1]);
     userPositionByUserId[userId] =
-        PositionUpdate(time, position, velocity, acceleration);
+        PositionUpdate(elapsed, position, velocity, acceleration);
   }
 
   void _submitName() {
@@ -309,9 +322,10 @@ class MyHomePageState extends State<MyHomePage> {
 }
 
 class PositionUpdate {
-  final DateTime sentAt;
+  final Duration messageTime;
   final Vector2 position;
   final Vector2 velocity;
   final Vector2 acceleration;
-  PositionUpdate(this.sentAt, this.position, this.velocity, this.acceleration);
+  PositionUpdate(
+      this.messageTime, this.position, this.velocity, this.acceleration);
 }

@@ -52,11 +52,22 @@ class MyGame extends FlameGame
   final mobileControllerRight = MobileControllerRight();
   final remoteCharacters = <String, RemoteControlledCharacter>{};
 
+  final debugText = TextComponent(
+    position: Vector2(0, 30),
+    textRenderer: TextPaint(
+      style: TextStyle(
+        color: Colors.white,
+        fontSize: 24,
+      ),
+    ),
+  )..positionType = PositionType.viewport;
+
   @override
   Future<void> onLoad() async {
     await add(me);
     await add(ground);
     await add(FpsTextComponent());
+    await add(debugText);
     await add(OffscreenCharacter(me));
     await add(mobileControllerLeft);
     await add(mobileControllerRight);
@@ -210,17 +221,27 @@ mixin RemoteCharacterControl on Character {
 
   final remoteAcceleration = Vector2.zero();
 
-  late var updatedAt = DateTime.now();
+  var _lastMessageTime = Duration.zero;
+  var _discardedEvents = 0;
 
   @override
   void update(double dt) {
     final newPosition = state.userPositionByUserId.remove(userId);
-    if (newPosition != null && newPosition.sentAt.isAfter(updatedAt)) {
-      position.setFrom(newPosition.position);
-      velocity.setFrom(newPosition.velocity);
+    if (newPosition != null) {
+      final inOrderByTime = newPosition.messageTime > _lastMessageTime;
 
-      remoteAcceleration.setFrom(newPosition.acceleration);
-      updatedAt = newPosition.sentAt;
+      if (inOrderByTime) {
+        position.setFrom(newPosition.position);
+        velocity.setFrom(newPosition.velocity);
+        remoteAcceleration.setFrom(newPosition.acceleration);
+
+        setUserName(state.userNameByUserId[userId] ?? '');
+
+        _lastMessageTime = newPosition.messageTime;
+      } else {
+        _discardedEvents++;
+        setDebugText('DE: $_discardedEvents');
+      }
     }
 
     velocity.add(remoteAcceleration * dt);
@@ -288,8 +309,33 @@ abstract class Character extends RectangleComponent
 
   bool get grounded => groundedPosition != null;
 
+  // TODO: draw vertically, make rocket resize to fit text. Long text = long rocket
+  late final nameplate = TextComponent(
+    position: Vector2(0, -0.2),
+    textRenderer: TextPaint(
+      style: TextStyle(color: Colors.white, fontSize: 0.5),
+    ),
+  );
+
+  final debugText = TextComponent(
+    position: Vector2(0, -0.8),
+    textRenderer: TextPaint(
+      style: TextStyle(color: Colors.white, fontSize: 0.4),
+    ),
+  );
+
+  void setUserName(String userName) {
+    nameplate.text = userName;
+  }
+
+  void setDebugText(String text) {
+    debugText.text = text;
+  }
+
   @override
   Future<void> onLoad() async {
+    add(nameplate);
+    add(debugText);
     add(RectangleHitbox(size: size));
   }
 
