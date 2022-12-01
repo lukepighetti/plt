@@ -221,29 +221,52 @@ mixin RemoteCharacterControl on Character {
 
   final remoteAcceleration = Vector2.zero();
 
-  var _lastMessageTime = Duration.zero;
+  var _lastElapsed = Duration.zero;
+  var _lastSessionId = '';
   var _discardedEvents = 0;
+  var _lastUserName = '';
+
+  void _updateKinematics(PositionUpdate update) {
+    position.setFrom(update.position);
+    velocity.setFrom(update.velocity);
+    remoteAcceleration.setFrom(update.acceleration);
+  }
 
   @override
   void update(double dt) {
+    final debugText = StringBuffer();
     final newPosition = state.userPositionByUserId.remove(userId);
+
     if (newPosition != null) {
-      final inOrderByTime = newPosition.messageTime > _lastMessageTime;
+      // handle user name changes
+      final userName = state.userNameByUserId[userId] ?? '';
+      final newUserName = _lastUserName != userName;
+      if (newUserName) {
+        setUserName(userName);
+      }
 
+      // handle new sessions
+      final sessionId = newPosition.sessionId;
+      final newSession = _lastSessionId != sessionId;
+      if (newSession) {
+        _updateKinematics(newPosition);
+        _lastSessionId = sessionId;
+        _lastElapsed = newPosition.elapsed;
+      }
+
+      // handle event order
+      final elapsed = newPosition.elapsed;
+      final inOrderByTime = elapsed > _lastElapsed;
       if (inOrderByTime) {
-        position.setFrom(newPosition.position);
-        velocity.setFrom(newPosition.velocity);
-        remoteAcceleration.setFrom(newPosition.acceleration);
-
-        setUserName(state.userNameByUserId[userId] ?? '');
-
-        _lastMessageTime = newPosition.messageTime;
-      } else {
+        _updateKinematics(newPosition);
+        _lastElapsed = elapsed;
+      } else if (!newSession) {
         _discardedEvents++;
-        setDebugText('DE: $_discardedEvents');
+        debugText.write('DE: $_discardedEvents');
       }
     }
 
+    setDebugText(debugText.toString());
     velocity.add(remoteAcceleration * dt);
     super.update(dt);
   }

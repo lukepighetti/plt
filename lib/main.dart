@@ -51,6 +51,7 @@ class MyHomePageState extends State<MyHomePage> {
 
   var userName = prefs.getString('userName') ?? '';
   var userId = prefs.getString('userId') ?? '';
+  var sessionId = nanoid(2);
   Timer? nameBroadcastingTimer;
 
   @override
@@ -162,6 +163,7 @@ class MyHomePageState extends State<MyHomePage> {
       ..addString(jsonEncode([
         messageTime.elapsedMilliseconds,
         userId,
+        sessionId,
         position.toString(),
         velocity.toString(),
         acceleration.toString(),
@@ -177,17 +179,18 @@ class MyHomePageState extends State<MyHomePage> {
 
   void _handleBroadcastCharacterPosition(String pt) {
     final data = jsonDecode(pt);
-    final userId = data[1];
     final elapsed = Duration(milliseconds: data[0]);
+    final userId = data[1];
+    final sessionId = data[2];
     if (!showMyGhost && userId == this.userId) return;
-    final positionData = jsonDecode(data[2]);
+    final positionData = jsonDecode(data[3]);
     final position = Vector2(positionData[0], positionData[1]);
-    final velocityData = jsonDecode(data[3]);
+    final velocityData = jsonDecode(data[4]);
     final velocity = Vector2(velocityData[0], velocityData[1]);
-    final accelerationData = jsonDecode(data[4]);
+    final accelerationData = jsonDecode(data[5]);
     final acceleration = Vector2(accelerationData[0], accelerationData[1]);
     userPositionByUserId[userId] =
-        PositionUpdate(elapsed, position, velocity, acceleration);
+        PositionUpdate(elapsed, sessionId, position, velocity, acceleration);
   }
 
   void _submitName() {
@@ -322,10 +325,11 @@ class MyHomePageState extends State<MyHomePage> {
 }
 
 class PositionUpdate {
-  final Duration messageTime;
+  final Duration elapsed;
+  final String sessionId;
   final Vector2 position;
   final Vector2 velocity;
   final Vector2 acceleration;
-  PositionUpdate(
-      this.messageTime, this.position, this.velocity, this.acceleration);
+  PositionUpdate(this.elapsed, this.sessionId, this.position, this.velocity,
+      this.acceleration);
 }
