@@ -6,6 +6,7 @@ import 'package:flame/components.dart';
 import 'package:flame/game.dart';
 import 'package:flame/geometry.dart';
 import 'package:flame/input.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:plt/mobile_controller.dart';
@@ -64,10 +65,13 @@ class MyGame extends FlameGame
 
   @override
   Future<void> onLoad() async {
+    if (kDebugMode) {
+      await add(FpsTextComponent());
+      await add(debugText);
+    }
+
     await add(me);
     await add(ground);
-    await add(FpsTextComponent());
-    await add(debugText);
     await add(OffscreenCharacter(me));
     await add(mobileControllerLeft);
     await add(mobileControllerRight);

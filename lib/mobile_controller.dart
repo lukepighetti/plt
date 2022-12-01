@@ -12,6 +12,7 @@ class MobileControllerRight extends HudMarginComponent<MobileControllerEvents> {
 
   MobileControllerRight()
       : super(
+          priority: 10,
           margin: EdgeInsets.only(bottom: -_center.y, right: -_center.x),
         );
 
@@ -218,6 +219,7 @@ class MobileControllerLeft extends HudMarginComponent<MobileControllerEvents>
 
   MobileControllerLeft()
       : super(
+          priority: 10,
           margin: EdgeInsets.only(bottom: 1, left: 1),
         );
 
