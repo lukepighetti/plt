@@ -15,6 +15,7 @@ import 'collision_routing.dart';
 import 'keyboard_routing.dart';
 import 'main.dart';
 
+const _kHandleJitter = true;
 final gameFocusNode = FocusNode();
 
 class GameView extends StatelessWidget {
@@ -304,9 +305,15 @@ mixin RemoteCharacterControl on Character {
         if (jitter == Duration.zero) {
           _updateKinematics(newPosition);
         } else if (jitter.isNegative) {
+          // TODO: handle events that come in late by rewinding kinematics
+          // and applying new position retroactively
           _updateKinematics(newPosition);
         } else {
-          _scheduleKinematicsUpdate(jitter, newPosition);
+          if (_kHandleJitter) {
+            _scheduleKinematicsUpdate(jitter, newPosition);
+          } else {
+            _updateKinematics(newPosition);
+          }
         }
       } else if (!newSession) {
         _discardedEvents++;
