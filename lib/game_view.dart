@@ -234,12 +234,39 @@ mixin RemoteCharacterControl on Character {
     position.setFrom(update.position);
     velocity.setFrom(update.velocity);
     remoteAcceleration.setFrom(update.acceleration);
+    _lastElapsed = update.elapsed;
+  }
+
+  final _scheduledKinematicsUpdates = <Scheduled<PositionUpdate>>[];
+  void _scheduleKinematicsUpdate(Duration dt, PositionUpdate update) {
+    _scheduledKinematicsUpdates.add(Scheduled(dt, update));
+  }
+
+  PositionUpdate? _checkScheduledKinematicsUpdate(double dt) {
+    for (final scheduledUpdate in _scheduledKinematicsUpdates) {
+      scheduledUpdate.duration -= dt.secondsToDuration();
+      if (scheduledUpdate.duration.isNegative) {
+        _scheduledKinematicsUpdates.remove(scheduledUpdate);
+        return scheduledUpdate.value;
+      }
+    }
+    return null;
+  }
+
+  final _stopwatch = Stopwatch()..start();
+  final _delays = <Duration>[];
+
+  @override
+  void onRemove() {
+    _stopwatch.stop();
+    super.onRemove();
   }
 
   @override
   void update(double dt) {
     final debugText = StringBuffer();
     final newPosition = state.userPositionByUserId.remove(userId);
+    final scheduledPosition = _checkScheduledKinematicsUpdate(dt);
 
     if (newPosition != null) {
       // handle user name changes
@@ -256,21 +283,44 @@ mixin RemoteCharacterControl on Character {
         _updateKinematics(newPosition);
         _lastSessionId = sessionId;
         _lastElapsed = newPosition.elapsed;
+        _stopwatch.reset();
       }
+
+      // handle jitter
+      final delay = _stopwatch.elapsed - newPosition.elapsed;
+      _delays.add(delay);
+      if (_delays.length > 60) _delays.removeAt(0);
+      final averageDelay = _delays.average;
+      // zero is on time, negative is late, positive is early
+      final jitter = averageDelay - delay;
+      debugText.write('J: ${jitter.inMilliseconds} ');
+      debugText.write('A: ${averageDelay.inMilliseconds} ');
+      debugText.write('L: ${_delays.length} ');
 
       // handle event order
       final elapsed = newPosition.elapsed;
       final inOrderByTime = elapsed > _lastElapsed;
       if (inOrderByTime) {
-        _updateKinematics(newPosition);
-        _lastElapsed = elapsed;
+        if (jitter == Duration.zero) {
+          _updateKinematics(newPosition);
+        } else if (jitter.isNegative) {
+          _updateKinematics(newPosition);
+        } else {
+          _scheduleKinematicsUpdate(jitter, newPosition);
+        }
       } else if (!newSession) {
         _discardedEvents++;
-        debugText.write('DE: $_discardedEvents');
+      }
+      if (_discardedEvents > 0) debugText.write('DE: $_discardedEvents ');
+    } else if (scheduledPosition != null) {
+      if (scheduledPosition.elapsed > _lastElapsed) {
+        _updateKinematics(scheduledPosition);
+      } else {
+        _discardedEvents++;
       }
     }
 
-    setDebugText(debugText.toString());
+    if (debugText.isNotEmpty) setDebugText(debugText.toString());
     velocity.add(remoteAcceleration * dt);
     super.update(dt);
   }
@@ -443,4 +493,24 @@ extension RectangleComponentX on RectangleComponent {
       newVertices: RectangleComponent.sizeToVertices(size, anchor),
     );
   }
+}
+
+extension DurationX on Duration {
+  operator /(num other) => Duration(microseconds: inMicroseconds ~/ other);
+}
+
+extension IterableDurationX on Iterable<Duration> {
+  Duration get average => reduce((a, b) => a + b) / length;
+}
+
+class Scheduled<T> {
+  Duration duration;
+  final T value;
+
+  Scheduled(this.duration, this.value);
+}
+
+extension on double {
+  /// Works on decimal seconds with microsecond precision
+  Duration secondsToDuration() => Duration(microseconds: (this * 1e6).toInt());
 }
