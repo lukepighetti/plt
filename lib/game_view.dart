@@ -345,7 +345,7 @@ mixin LocalCharacterControl on Character {
     gameRef.state.broadcastCharacterPosition(position, velocity, acceleration);
   }
 
-  static const _networkUpdatePeriod = 0.5;
+  static final _networkUpdatePeriod = Fps(20).decimalSeconds;
 
   var _dtSinceNetworkUpdate = 0.0;
 
@@ -520,4 +520,11 @@ class Scheduled<T> {
 extension on double {
   /// Works on decimal seconds with microsecond precision
   Duration secondsToDuration() => Duration(microseconds: (this * 1e6).toInt());
+}
+
+class Fps {
+  final double framerate;
+  Fps(this.framerate);
+  late final period = Duration(microseconds: 1e6 ~/ framerate);
+  late final decimalSeconds = 1 / framerate;
 }
