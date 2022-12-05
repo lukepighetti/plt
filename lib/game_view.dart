@@ -47,7 +47,7 @@ class MyGame extends FlameGame
 
   late final Game game = findGame()!;
   final MyHomePageState state;
-  final me = LocallyControlledCharater();
+  final me = LocallyControlledCharacter();
   final ground = Ground();
   final mobileControllerLeft = MobileControllerLeft();
   final mobileControllerRight = MobileControllerRight();
@@ -326,7 +326,7 @@ mixin RemoteCharacterControl on Character {
   }
 }
 
-class LocallyControlledCharater = Character with LocalCharacterControl;
+class LocallyControlledCharacter = Character with LocalCharacterControl;
 
 mixin LocalCharacterControl on Character {
   var thrusting = JoystickButtonValue();
