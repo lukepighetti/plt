@@ -1,12 +1,23 @@
+import 'dart:async';
+import 'dart:convert';
+import 'dart:math';
+
+import 'package:flame/components.dart' hide Timer;
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:mqtt_client/mqtt_browser_client.dart';
 import 'package:mqtt_client/mqtt_client.dart';
+import 'package:nanoid/nanoid.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'game_view.dart';
 import 'logger.dart';
 
 late final SharedPreferences prefs;
+
+const showMyGhost = kDebugMode;
+const fakeJitter = 0;
+const fakeDelay = 0;
 
 Future<void> main() async {
   prefs = await SharedPreferences.getInstance();
@@ -30,23 +41,50 @@ class MyHomePage extends StatefulWidget {
   const MyHomePage({super.key});
 
   @override
-  State<MyHomePage> createState() => _MyHomePageState();
+  State<MyHomePage> createState() => MyHomePageState();
 }
 
-class _MyHomePageState extends State<MyHomePage> {
+class MyHomePageState extends State<MyHomePage> {
   static final _mqttLog = Logger('MQTT');
-  late final _nameController = TextEditingController();
-  late final _nameFocusNode = FocusNode();
+  late final usernameController = TextEditingController(text: userName);
+  late final usernameFocusNode = FocusNode();
 
-  var _name = prefs.getString('name') ?? '';
+  var userName = prefs.getString('userName') ?? '';
+  var userId = prefs.getString('userId') ?? '';
+  var sessionId = nanoid(2);
+  Timer? nameBroadcastingTimer;
 
   @override
   void initState() {
     setupMqtt();
+
+    if (userId.isEmpty) {
+      userId = nanoid(4);
+      prefs.setString('userId', userId);
+    }
+
+    nameBroadcastingTimer = Timer.periodic(
+      Duration(seconds: 5),
+      (_) => broadcastName(),
+    );
+
     super.initState();
   }
 
-  final client = MqttBrowserClient('wss://plt-mqtt.ngrok.io', '');
+  @override
+  void dispose() {
+    usernameController.dispose();
+    usernameFocusNode.dispose();
+    nameBroadcastingTimer?.cancel();
+    super.dispose();
+  }
+
+  static final client = MqttBrowserClient('wss://plt-mqtt.ngrok.io', '');
+
+  bool get isConnected =>
+      client.connectionStatus?.state == MqttConnectionState.connected;
+
+  static StreamSubscription? sub1;
 
   Future<void> setupMqtt() async {
     client.port = 443;
@@ -67,43 +105,107 @@ class _MyHomePageState extends State<MyHomePage> {
 
     client.subscribe('#', MqttQos.atMostOnce);
 
-    await for (final batch in client.updates!) {
+    // dirty hax, dirty hax, dirty hax
+    if (userName.isNotEmpty) {
+      broadcastName();
+    }
+
+    sub1?.cancel();
+    sub1 = client.updates!.listen((batch) {
       for (final message in batch) {
         final p = message.payload;
         if (p is! MqttPublishMessage) continue;
         final pt = MqttPublishPayload.bytesToStringAsString(p.payload.message);
+        switch (message.topic) {
+          case 'broadcast-name':
+            _handleBroadcastName(pt);
+            break;
+          case 'broadcast-character-position':
+            _handleBroadcastCharacterPosition(pt);
+            break;
+        }
         _mqttLog.v('<${message.topic}>: $pt');
       }
-    }
+    });
   }
 
-  void _broadcastJoin(String name) {
-    final builder = MqttClientPayloadBuilder();
-    builder.addString(name);
+  final userNameByUserId = <String, String>{};
+
+  void broadcastName() {
+    if (!isConnected) return;
+    // TODO: pack/unpack different types of data, ie bool, int, string
+    final builder = MqttClientPayloadBuilder()
+      ..addString(jsonEncode([userId, userName]));
     client.publishMessage(
-        'broadcast-join', MqttQos.atMostOnce, builder.payload!);
+        'broadcast-name', MqttQos.atMostOnce, builder.payload!);
   }
 
-  @override
-  void dispose() {
-    _nameController.dispose();
-    _nameFocusNode.dispose();
-    super.dispose();
+  void _handleBroadcastName(String pt) {
+    final data = jsonDecode(pt);
+    final userId = data[0];
+    final userName = data[1];
+    if (!showMyGhost && userId == this.userId) return;
+    userNameByUserId[userId] = userName;
+  }
+
+  final userPositionByUserId = <String, PositionUpdate>{};
+
+  final messageTime = Stopwatch()..start();
+
+  void broadcastCharacterPosition(
+    Vector2 position,
+    Vector2 velocity,
+    Vector2 acceleration,
+  ) async {
+    if (!isConnected) return;
+
+    final builder = MqttClientPayloadBuilder()
+      ..addString(jsonEncode([
+        messageTime.elapsedMilliseconds,
+        userId,
+        sessionId,
+        position.toString(),
+        velocity.toString(),
+        acceleration.toString(),
+      ]));
+
+    if (fakeJitter > 0)
+      await Future.delayed(
+          Duration(milliseconds: Random().nextInt(fakeJitter)));
+    if (fakeDelay > 0) await Future.delayed(Duration(milliseconds: fakeDelay));
+    client.publishMessage(
+        'broadcast-character-position', MqttQos.atMostOnce, builder.payload!);
+  }
+
+  void _handleBroadcastCharacterPosition(String pt) {
+    final data = jsonDecode(pt);
+    final elapsed = Duration(milliseconds: data[0]);
+    final userId = data[1];
+    final sessionId = data[2];
+    if (!showMyGhost && userId == this.userId) return;
+    final positionData = jsonDecode(data[3]);
+    final position = Vector2(positionData[0], positionData[1]);
+    final velocityData = jsonDecode(data[4]);
+    final velocity = Vector2(velocityData[0], velocityData[1]);
+    final accelerationData = jsonDecode(data[5]);
+    final acceleration = Vector2(accelerationData[0], accelerationData[1]);
+    userPositionByUserId[userId] =
+        PositionUpdate(elapsed, sessionId, position, velocity, acceleration);
   }
 
   void _submitName() {
-    final name = _nameController.text.trim();
+    final name = usernameController.text.trim();
     if (name.isEmpty) {
-      _nameFocusNode.requestFocus();
+      usernameFocusNode.requestFocus();
       return;
     }
 
     setState(() {
-      prefs.setString('name', name);
-      _name = name;
+      prefs.setString('userName', name);
+      userName = name;
     });
 
-    _broadcastJoin(name);
+    broadcastName();
     gameFocusNode.requestFocus();
   }
 
@@ -111,11 +213,9 @@ class _MyHomePageState extends State<MyHomePage> {
     final name = '';
 
     setState(() {
-      prefs.setString('name', name);
-      _name = name;
+      prefs.setString('userName', name);
+      userName = name;
     });
-
-    _broadcastJoin(name);
   }
 
   @override
@@ -125,7 +225,7 @@ class _MyHomePageState extends State<MyHomePage> {
         fit: StackFit.expand,
         children: [
           /// Game view
-          GameView(),
+          GameView(gameState: this),
 
           /// Status bar
           Align(
@@ -135,9 +235,9 @@ class _MyHomePageState extends State<MyHomePage> {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.end,
                 children: [
-                  if (_name.isNotEmpty)
+                  if (userName.isNotEmpty)
                     TextButton(
-                      child: Text(_name),
+                      child: Text(userName),
                       onPressed: () {
                         _resetName();
                       },
@@ -148,7 +248,7 @@ class _MyHomePageState extends State<MyHomePage> {
           ),
 
           /// Enter your name
-          if (_name.isEmpty)
+          if (userName.isEmpty)
             Center(
               child: SizedBox(
                 height: 300,
@@ -173,8 +273,8 @@ class _MyHomePageState extends State<MyHomePage> {
                         Padding(
                           padding: EdgeInsets.all(25),
                           child: TextField(
-                            controller: _nameController,
-                            focusNode: _nameFocusNode,
+                            controller: usernameController,
+                            focusNode: usernameFocusNode,
                             onSubmitted: (_) => _submitName(),
                             autofocus: true,
                             decoration:
@@ -186,10 +286,10 @@ class _MyHomePageState extends State<MyHomePage> {
 
                         /// Proceed button
                         AnimatedBuilder(
-                          animation: _nameController,
+                          animation: usernameController,
                           builder: (context, _) {
                             return ElevatedButton(
-                              onPressed: _nameController.text.trim().isEmpty
+                              onPressed: usernameController.text.trim().isEmpty
                                   ? null
                                   : _submitName,
                               style: ElevatedButton.styleFrom(
@@ -208,7 +308,7 @@ class _MyHomePageState extends State<MyHomePage> {
               ),
             ),
 
-          if (client.connectionStatus?.state != MqttConnectionState.connected)
+          if (!isConnected)
             ColoredBox(
               color: Colors.black26,
               child: Center(
@@ -222,4 +322,14 @@ class _MyHomePageState extends State<MyHomePage> {
       ),
     );
   }
+}
+
+class PositionUpdate {
+  final Duration elapsed;
+  final String sessionId;
+  final Vector2 position;
+  final Vector2 velocity;
+  final Vector2 acceleration;
+  PositionUpdate(this.elapsed, this.sessionId, this.position, this.velocity,
+      this.acceleration);
 }

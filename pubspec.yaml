@@ -12,6 +12,7 @@ dependencies:
   flutter:
     sdk: flutter
   mqtt_client: ^9.7.2
+  nanoid: ^1.0.0
   shared_preferences: ^2.0.15
 
 dev_dependencies:
