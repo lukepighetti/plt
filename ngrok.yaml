@@ -3,6 +3,9 @@ region: us
 tunnels:
   plt:
     proto: http
+    schemes: 
+      - http
+      - https
     addr: 8000
     subdomain: plt
   plt-mqtt:
