@@ -189,15 +189,16 @@ class OffscreenCharacter extends PositionComponent with HasGameRef<MyGame> {
     return super.onLoad();
   }
 
-  @override
-  void onGameResize(Vector2 size) {
+  // BUG: onGameResize isn't capturing full screen as a resize event, so we
+  // call this in update()
+  void _updateViewportDependentLayouts() {
     boundary.position.setFrom(_getBoundaryPosition());
     boundary.sizeSetFromShim(_getBoundarySize());
-    super.onGameResize(size);
   }
 
   @override
   void update(double dt) {
+    _updateViewportDependentLayouts();
     final cameraCenter = camera.position + camera.gameSize / 2;
     final characterCenter = characterRef.position + characterRef.size / 2;
     final lineTo = LineSegment(cameraCenter, characterCenter);
